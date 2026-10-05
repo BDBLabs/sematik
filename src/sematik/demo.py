@@ -1,18 +1,19 @@
-"""`python -m sematik.demo` — a visible §73 minimal lifecycle walk:
+"""`python -m sematik.demo` — a visible §73 minimal lifecycle walk (subset):
 profile → hypothesis → approved mapping → compile → execute →
-backward lineage → reconcile → manifest hash."""
+backward lineage → reconcile → manifest hash. Invoke as
+`PYTHONPATH=src python -m sematik.demo` from the repo root."""
 
 from __future__ import annotations
 
 import json
 import pathlib
 
-from .compiler import PlanStep, compile_mapping
+from .compiler import PlanStep, assertion_from_plan_output, compile_mapping
 from .discovery import hypotheses_for_column, profile_column
 from .mapping import Mapping
-from .model import Confidence
+from .model import (Assertion, Confidence, DerivationStatus, Provenance)
 from .reconcile import population_reconcile, semantic_reconcile
-from .cpasf_pack import CPASF_INVARIANTS, cpasf_pack
+from .cpasf_pack import CPASF_INVARIANTS
 from .runner import run_conversion
 
 FIXTURE = pathlib.Path(__file__).parent.parent.parent / "tests" / "fixtures" / "legacy_parcels.json"
@@ -65,12 +66,19 @@ def main() -> None:
     recon = population_reconcile(rows, run.outputs, source_key="APN", target_key="apn")
     print(f"[5] Population reconciliation: missing_in_target={recon['missing_in_target']}, balanced={recon['balanced']}")
 
-    from .model import Assertion, DerivationStatus, Provenance
+    print(f"[4.5] Backward lineage of first converted row:")
+    a = assertion_from_plan_output(plan, run.outputs[0],
+                                   Provenance(source_system="LEGACYDB", source_table="PARCEL", source_record="r1"),
+                                   mapping)
+    print(f"      assertion concept={a.concept!r} value={a.value} history={a.transformation_history}")
+
     asserts = [
-        Assertion(concept="Assessment", value=1,
-                  transformation_history=("x",), provenance=Provenance(source_system="legacy")),
-        Assertion(concept="Property", value=1, provenance=Provenance(source_system="legacy")),
-    ]
+        Assertion(concept="Assessment", value=o["total_assessed"],
+                  derivation=DerivationStatus.DERIVED_VALUE,
+                  provenance=Provenance(source_system="LEGACYDB", source_table="PARCEL"),
+                  transformation_history=(plan.mapping_digest,))
+        for o in run.outputs[:1]
+    ] + [Assertion(concept="Property", value=1, provenance=Provenance(source_system="LEGACYDB"))]
     inv = semantic_reconcile(asserts, CPASF_INVARIANTS)
     print(f"[6] Invariants checked={inv['invariants_checked']}, failures={inv['failures']}")
     print(f"[7] Conversion manifest hash: {run.manifest_hash()}")
