@@ -24,8 +24,7 @@ air-gapped deployments.
    `sematik.embeddings`.
 2. Implement `NvidiaEmbeddingProvider` with the hosted NVIDIA endpoint as the
    default and with endpoint/model overrides for self-hosted NIM.
-3. Default the hosted model to `nvidia/llama-nemotron-embed-1b-v2`, while
-   allowing the model to be changed without changing Sematik code.
+3. Default the hosted model to `nvidia/nemotron-3-embed-1b`, the current NVIDIA hosted text-embedding model, while allowing the model to be changed without changing Sematik code.
 4. Preserve NVIDIA's retrieval semantics:
    - source descriptions are embedded as `query`;
    - canonical concept definitions are embedded as `passage`.
@@ -44,7 +43,7 @@ Hosted NVIDIA Build:
 
 ```text
 NVIDIA_API_KEY=nvapi-...
-SEMATIK_NVIDIA_EMBEDDING_MODEL=nvidia/llama-nemotron-embed-1b-v2
+SEMATIK_NVIDIA_EMBEDDING_MODEL=nvidia/nemotron-3-embed-1b
 ```
 
 Optional endpoint override for self-hosted NIM:
