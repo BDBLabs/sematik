@@ -13,6 +13,7 @@ import hashlib
 import ipaddress
 from dataclasses import dataclass, field
 from enum import Enum
+from types import MappingProxyType
 from typing import Mapping
 from urllib.parse import urlparse
 
@@ -77,6 +78,7 @@ class EgressDecision:
 class EgressPolicy:
     """Explicit allowlist by destination.
 
+    SELF_HOSTED means inside the customer-controlled trust boundary.
     Deployments may replace this with a customer-approved policy, but they must
     not infer permission from the presence of an API key.
     """
@@ -84,6 +86,13 @@ class EgressPolicy:
     allowed: Mapping[EgressDestination, frozenset[DataClassification]] = field(
         default_factory=dict
     )
+
+    def __post_init__(self) -> None:
+        frozen = {
+            destination: frozenset(classes)
+            for destination, classes in self.allowed.items()
+        }
+        object.__setattr__(self, "allowed", MappingProxyType(frozen))
 
     @classmethod
     def conservative_government_default(cls) -> "EgressPolicy":
