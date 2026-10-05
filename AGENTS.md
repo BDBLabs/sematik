@@ -43,3 +43,12 @@ GitHub is the system of record. `main` is gated.
 - The AI author must NOT merge its own PR. Stop at the review boundary; the
   independent reviewing model inspects the current head SHA. Any material
   change after approval requires re-review of the new head.
+
+## PR review exception (owner directive, 2026-10-05)
+
+An independent reviewer is still preferred, but as an explicit exception the
+authoring agent may obtain PR review from subagents. Where the subagent runs a
+different underlying model from the author, its review satisfies the
+independent-review requirement. Where no different model is available, the
+exception requires a per-PR note from the owner in chat. The author does not
+merge a PR until the required review is recorded.
