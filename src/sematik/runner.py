@@ -32,20 +32,23 @@ class ConversionRun:
     exceptions: list[RunException] = field(default_factory=list)
     outputs: list[dict[str, Any]] = field(default_factory=list)
     assertions: list[Assertion] = field(default_factory=list)
+    golden: dict[str, Any] | None = None
 
     def manifest_hash(self) -> str:
         payload = json.dumps(
             {"snapshot": self.source_snapshot, "mapping": self.mapping_version,
              "pack": self.domain_pack_version, "engine": self.engine_version,
              "total": self.total_records, "converted": self.converted,
-             "rejected": self.rejected}, sort_keys=True)
+             "rejected": self.rejected,
+             "golden_ok": None if self.golden is None else self.golden.get("ok")},
+            sort_keys=True)
         return hashlib.sha256(payload.encode()).hexdigest()[:16]
 
 
 def run_conversion(rows: Iterable[dict[str, Any]], plan: TransformationPlan,
                    mapping: Mapping, *, source_snapshot: str,
                    domain_pack_version: str, engine_version: str,
-                   provenance_of) -> ConversionRun:
+                   provenance_of, golden: list[dict[str, Any]] | None = None) -> ConversionRun:
     run = ConversionRun(
         source_snapshot=source_snapshot,
         mapping_version=mapping.digest(),
@@ -63,4 +66,7 @@ def run_conversion(rows: Iterable[dict[str, Any]], plan: TransformationPlan,
             run.exceptions.append(RunException(
                 record_id=str(row.get("_id", "?")), reason=str(e), phase="execution"))
             continue
+    if golden is not None:
+        from .golden import run_golden_records
+        run.golden = run_golden_records(plan, golden)
     return run
