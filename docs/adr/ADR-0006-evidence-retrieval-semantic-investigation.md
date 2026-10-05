@@ -151,7 +151,7 @@ External hosted retrieval/embedding is an explicit egress route.
 The baseline government-oriented policy is:
 
 - PUBLIC: may be allowed to reviewed external hosted providers;
-- INTERNAL/CONFIDENTIAL/RESTRICTED: local or self-hosted by default;
+- INTERNAL/CONFIDENTIAL/RESTRICTED: local or self-hosted inside the customer-controlled trust boundary by default;
 - deployment owners may substitute a stricter or specifically approved policy.
 
 Possession of an API key is not permission to send customer data.
