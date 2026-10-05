@@ -36,7 +36,7 @@ export NVIDIA_API_KEY='nvapi-...'
 Optional configuration:
 
 ```sh
-export SEMATIK_NVIDIA_EMBEDDING_MODEL='nvidia/llama-nemotron-embed-1b-v2'
+export SEMATIK_NVIDIA_EMBEDDING_MODEL='nvidia/nemotron-3-embed-1b'
 # For a self-hosted NIM:
 # export SEMATIK_NVIDIA_EMBEDDINGS_URL='http://localhost:8000/v1/embeddings'
 # export SEMATIK_NVIDIA_EMBEDDING_MODEL='baai/bge-m3'
