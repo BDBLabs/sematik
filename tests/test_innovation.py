@@ -6,6 +6,7 @@ from sematik.model import SemanticHypothesis
 from sematik.compiler import PlanStep, compile_mapping
 from sematik.mapping import Mapping
 from sematik.record_confidence import record_confidence
+from helpers import approved_mapping
 
 
 def _hyp(concept, conf, records=10):
@@ -45,10 +46,7 @@ def test_record_level_outlier_detection():
 
 
 def test_golden_records_pass_and_fail():
-    mapping = Mapping(source_artifact="s", canonical_concept="c",
-                      target_artifact="t", approved_by="t",
-                      confidence=Confidence(0.9))
-    mapping.add_level(1, "physical", "x")
+    mapping = approved_mapping()
     plan = compile_mapping(mapping, [PlanStep("copy", {"from": "a", "to": "t"})])
     golden = [{"name": "g1", "input": {"a": 1, "_id": "1"}, "expected": {"t": 1}}]
     assert run_golden_records(plan, golden)["ok"]

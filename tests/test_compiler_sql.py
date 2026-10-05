@@ -1,13 +1,12 @@
 from sematik.compiler import PlanStep, compile_mapping_to_sql
 from sematik.mapping import Mapping
 from sematik.model import Confidence
+from helpers import approved_mapping
 
 
 def _approved():
-    m = Mapping(source_artifact="s", canonical_concept="Assessment.Valuation.total",
-                target_artifact="total_assessed", approved_by="t", confidence=Confidence(0.9))
-    m.add_level(1, "physical", "x")
-    return m
+    return approved_mapping(canonical_concept="Assessment.Valuation.total",
+                            target_artifact="total_assessed")
 
 
 def test_sql_lowering_contains_all_steps():
