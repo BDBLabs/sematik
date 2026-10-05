@@ -39,6 +39,21 @@ Discoveries propose, Assurance findings become questions in Control.
 - `Run` — a conversion execution: versions, snapshot hashes, artifact hashes,
   counts, reconciliation, exceptions, approvals → `ConversionManifest`.
 
+## Semantic retrieval and embeddings
+
+Embedding similarity is a **Discovery-plane signal only**. Sematik may use a
+configured embedding provider to rank Domain Pack concepts against a source
+description, but the resulting cosine score is not a calibrated confidence
+value and cannot approve a mapping.
+
+The first provider is NVIDIA NIM / NVIDIA Build via the OpenAI-compatible
+`/v1/embeddings` contract. Provider/model/endpoint are configuration, not domain
+logic. Query and passage modes remain distinct. The default policy is
+fail-visible (`truncate=NONE`) rather than silently discarding source meaning.
+
+Production Execution consumes only approved, compiled mappings; it does not call
+the embedding provider for each converted row. See ADR-0005.
+
 ## Evidence graph
 
 Nodes: source artifacts, hypotheses, assertions, concepts, mappings, rules,
