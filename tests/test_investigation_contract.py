@@ -227,7 +227,9 @@ def test_execution_and_assurance_modules_do_not_import_discovery_services():
     forbidden_roots = {
         "embeddings",
         "retrieval",
+        "retrieval_eval",
         "investigation",
+        "egress",
         "agents",
         "process_capture",
     }
