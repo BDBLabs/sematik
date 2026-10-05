@@ -150,9 +150,8 @@ class NvidiaEmbeddingProvider:
             with urllib.request.urlopen(request, timeout=self.timeout_seconds) as response:
                 raw = response.read()
         except urllib.error.HTTPError as exc:
-            detail = exc.read(1024).decode("utf-8", errors="replace").strip()
-            suffix = f": {detail}" if detail else ""
-            raise EmbeddingError(f"NVIDIA embeddings HTTP {exc.code}{suffix}") from exc
+            # Do not echo provider response bodies: they can reflect source text.
+            raise EmbeddingError(f"NVIDIA embeddings HTTP {exc.code}") from exc
         except urllib.error.URLError as exc:
             raise EmbeddingError(f"NVIDIA embeddings request failed: {exc.reason}") from exc
 
@@ -160,6 +159,14 @@ class NvidiaEmbeddingProvider:
             body = json.loads(raw)
         except (json.JSONDecodeError, UnicodeDecodeError) as exc:
             raise EmbeddingResponseError("NVIDIA embeddings response was not valid JSON") from exc
+
+        if not isinstance(body, dict):
+            raise EmbeddingResponseError("NVIDIA embeddings response must be a JSON object")
+        response_model = body.get("model")
+        if response_model is not None and response_model != self.model:
+            raise EmbeddingResponseError(
+                f"embedding response model {response_model!r} does not match requested {self.model!r}"
+            )
 
         data = body.get("data")
         if not isinstance(data, list) or len(data) != len(values):
@@ -238,13 +245,16 @@ def rank_semantic_candidates(
         return []
 
     concept_items = list(concepts.items())
-    query = provider.embed([source_description], input_type="query")[0]
+    query_vectors = provider.embed([source_description], input_type="query")
+    if len(query_vectors) != 1:
+        raise EmbeddingResponseError("provider returned the wrong number of query embeddings")
+    query = query_vectors[0]
     passage_texts = [f"{concept}: {definition}" for concept, definition in concept_items]
     passages = provider.embed(passage_texts, input_type="passage")
     if len(passages) != len(concept_items):
         raise EmbeddingResponseError("provider returned the wrong number of passage embeddings")
 
-    source_digest = hashlib.sha256(source_description.encode("utf-8")).hexdigest()[:16]
+    source_digest = hashlib.sha256(source_description.encode("utf-8")).hexdigest()
     ranked = [
         SemanticSimilarity(
             concept=concept,
