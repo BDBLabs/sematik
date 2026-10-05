@@ -7,3 +7,4 @@ supersede by adding a new one.
 - ADR-0002: SIR is the only semantic authority (schema is evidence, not authority)
 - ADR-0003: Discovery proposes, Control approves, Execution is deterministic
 - ADR-0004: Versioning and reproducibility contract
+- ADR-0006: Evidence Retrieval and Semantic Investigation contract
