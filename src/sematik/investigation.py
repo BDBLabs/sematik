@@ -17,6 +17,7 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
+from types import MappingProxyType
 from typing import Any, Mapping
 
 from .egress import DataClassification
@@ -185,6 +186,7 @@ class EvidenceItem:
             raise ValueError("hypothesis_id is required")
         if not self.producer_ref.strip():
             raise ValueError("producer_ref is required")
+        object.__setattr__(self, "scope", MappingProxyType(dict(self.scope)))
 
 
 @dataclass(frozen=True)
@@ -234,6 +236,9 @@ class EvidenceProbe:
             )
         ):
             raise ValueError("probe identity fields must be non-empty")
+        object.__setattr__(
+            self, "parameters", MappingProxyType(dict(self.parameters))
+        )
 
 
 @dataclass(frozen=True)
