@@ -9,17 +9,19 @@ from __future__ import annotations
 
 import hashlib
 import json
+import ipaddress
 import math
 import os
 import urllib.error
 import urllib.request
+from urllib.parse import urlparse
 from dataclasses import dataclass
 from typing import Literal, Protocol, Sequence
 
 InputType = Literal["query", "passage"]
 
 DEFAULT_NVIDIA_ENDPOINT = "https://integrate.api.nvidia.com/v1/embeddings"
-DEFAULT_NVIDIA_MODEL = "nvidia/llama-nemotron-embed-1b-v2"
+DEFAULT_NVIDIA_MODEL = "nvidia/nemotron-3-embed-1b"
 
 
 class EmbeddingError(RuntimeError):
@@ -59,6 +61,21 @@ class SemanticSimilarity:
     source_digest: str
 
 
+
+def _credential_transport_allowed(endpoint: str) -> bool:
+    parsed = urlparse(endpoint)
+    if parsed.scheme == "https":
+        return True
+    if parsed.scheme != "http" or not parsed.hostname:
+        return False
+    if parsed.hostname == "localhost":
+        return True
+    try:
+        return ipaddress.ip_address(parsed.hostname).is_loopback
+    except ValueError:
+        return False
+
+
 @dataclass
 class NvidiaEmbeddingProvider:
     """NVIDIA NIM / NVIDIA Build embedding client.
@@ -89,6 +106,10 @@ class NvidiaEmbeddingProvider:
         if self.endpoint.startswith("https://integrate.api.nvidia.com/") and not self.api_key:
             raise EmbeddingConfigurationError(
                 "NVIDIA_API_KEY is required for the hosted NVIDIA embeddings endpoint"
+            )
+        if self.api_key and not _credential_transport_allowed(self.endpoint):
+            raise EmbeddingConfigurationError(
+                "API credentials require HTTPS or a cleartext loopback endpoint"
             )
 
     @classmethod
@@ -125,7 +146,6 @@ class NvidiaEmbeddingProvider:
             "input": values,
             "model": self.model,
             "input_type": input_type,
-            "modality": "text",
             "encoding_format": "float",
             "truncate": self.truncate,
         }
