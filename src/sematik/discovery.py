@@ -42,6 +42,36 @@ def shannon_entropy(values: Iterable[Any]) -> float:
     return -sum((c / total) * math.log2(c / total) for c in counts.values())
 
 
+def candidate_relationships(tables: dict[str, list[dict[str, Any]]],
+                            *, overlap_threshold: float = 0.9) -> list[dict[str, Any]]:
+    """Heuristic FK-like discovery (spec §12): for every pair of columns in
+    different tables, count the fraction of distinct values in the smaller
+    side that appear in the larger side. It is a *candidate* relationship —
+    confidence-tagged, evidence-backed, never authoritative — because databases
+    routinely reuse values that do not imply FKs."""
+    columns: list[tuple[str, str, set]] = []
+    for table, rows in tables.items():
+        keys = {k for r in rows for k in r.keys()}
+        for k in keys:
+            vals = {r.get(k) for r in rows if r.get(k) is not None}
+            if vals:
+                columns.append((table, k, vals))
+    out = []
+    for i, (t1, k1, v1) in enumerate(columns):
+        for t2, k2, v2 in columns[i + 1:]:
+            if t1 == t2:
+                continue
+            smaller, larger = (v1, v2) if len(v1) <= len(v2) else (v2, v1)
+            overlap = len(smaller & larger) / max(len(smaller), 1)
+            if overlap >= overlap_threshold and smaller:
+                out.append({"from": [t1, k1] if len(v1) <= len(v2) else [t2, k2],
+                            "to": [t2, k2] if len(v1) <= len(v2) else [t1, k1],
+                            "overlap": round(overlap, 3),
+                            "confidence": round(0.4 + 0.5 * overlap, 3),
+                            "note": "candidate only — requires evidence from code/docs/SME"})
+    return out
+
+
 def hypotheses_for_column(name: str, profile: dict[str, Any]) -> list[SemanticHypothesis]:
     """Return candidate interpretations. Deliberately conservative: it names
     suspicion, not 'meaning'. A human decides (§15/§38)."""
