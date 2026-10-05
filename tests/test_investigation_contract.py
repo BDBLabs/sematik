@@ -10,6 +10,7 @@ from sematik.egress import (
     EgressRequest,
     endpoint_allows_credentials,
 )
+from sematik.retrieval_eval import RetrievalCase, evaluate_retrieval
 from sematik.investigation import (
     CompetingInterpretation,
     EvidenceAuthority,
@@ -249,3 +250,38 @@ def test_execution_and_assurance_modules_do_not_import_discovery_services():
                             violations.append(f"{filename}: import {name}")
 
     assert violations == []
+
+
+def test_retrieval_evaluation_reports_recall_and_misses():
+    cases = [
+        RetrievalCase(
+            case_id="land-value",
+            query="AV_LND_01 assessed land amount",
+            relevant_ids=frozenset({"concept:land-value"}),
+        ),
+        RetrievalCase(
+            case_id="base-date-hard-negative",
+            query="BASE_DT valuation date",
+            relevant_ids=frozenset({"concept:base-year-date"}),
+        ),
+    ]
+    rankings = {
+        "AV_LND_01 assessed land amount": [
+            "concept:land-value",
+            "concept:total-value",
+        ],
+        "BASE_DT valuation date": [
+            "concept:base-year-value",
+            "concept:base-year-date",
+        ],
+    }
+
+    result = evaluate_retrieval(
+        cases,
+        lambda query: rankings[query],
+        ks=(1, 2),
+    )
+
+    assert result.recall_at == {1: 0.5, 2: 1.0}
+    assert result.misses_at[1] == ("base-date-hard-negative",)
+    assert result.misses_at[2] == ()
