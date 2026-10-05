@@ -1,0 +1,2067 @@
+# Semantic Data Conversion Engine  
+## Moonshot Requirements Specification — Research / Prototype Challenge
+
+**Status:** Advanced exploratory specification  
+**Working designation:** Semantic Conversion Engine / Semantic Compiler  
+**Primary proving domain:** California property assessment and CPASF  
+**Long-term scope:** Domain-agnostic governed semantic data conversion
+
+---
+
+# 1. Mission
+
+Build a new class of data-conversion system capable of converting information between complex institutional systems based on **meaning rather than storage structure**.
+
+The system shall not treat migration as:
+
+`table → table`
+
+`column → column`
+
+`file → file`
+
+or even merely:
+
+`schema → schema`
+
+Instead, the system shall reason across the following chain:
+
+**Source representation → source business meaning → domain concept → temporal meaning → authority/provenance → canonical representation → transformation rule → target representation → validation → reconciliation → evidentiary record**
+
+The engine should behave less like an ETL product and more like a **compiler, forensic analyst, data architect, and reconciliation auditor working together**.
+
+Its job is not simply to move data.
+
+Its job is to determine:
+
+1. what the source information appears to mean;
+2. how confidently that meaning can be established;
+3. what evidence supports that interpretation;
+4. which canonical concepts represent that meaning;
+5. which information can be transformed without semantic loss;
+6. which information is ambiguous;
+7. which information conflicts with other source information;
+8. which historical and temporal relationships must be preserved;
+9. what target representation most faithfully expresses the original meaning;
+10. whether the conversion was complete and defensible.
+
+The engine must never imply that an AI-derived interpretation is inherently "true."
+
+Its output is an **accurate, evidence-supported representation of what was known, recorded, inferred, authorized, or calculated at the applicable time**, together with its provenance and confidence.
+
+---
+
+# 2. Product Vision
+
+The eventual product should make it possible to take a poorly documented 30-year-old institutional system and progressively reconstruct enough of its semantic model that migration becomes largely machine-assisted.
+
+A user should ultimately be able to provide:
+
+- database schemas;
+- database contents;
+- data dictionaries;
+- source code;
+- reports;
+- screen captures;
+- forms;
+- manuals;
+- policies;
+- statutes or regulations;
+- API documentation;
+- stored procedures;
+- batch programs;
+- historical extracts;
+- target-system schemas;
+- examples of known records;
+- SME explanations;
+
+and allow the platform to construct a **Semantic Migration Model** explaining what the legacy system represents and how its information corresponds to a target model.
+
+The target experience is:
+
+> "Show the engine the old system. Show it the new system. Give it the domain corpus. Let it discover the transformation."
+
+Human experts remain the authority for consequential decisions and unresolved ambiguity.
+
+---
+
+# 3. Architectural Principle: Canonical Semantic Intermediate Representation
+
+The engine shall use a canonical intermediate semantic representation.
+
+A migration should therefore normally be:
+
+**Legacy A → Semantic Canonical Model → Target B**
+
+rather than:
+
+**Legacy A → custom transformation → Target B**
+
+This is essential.
+
+It allows mappings from legacy systems to be reused across different target platforms.
+
+For the initial proving domain:
+
+**Legacy CAMA / Assessor System → CPASF Semantic Model → target CAMA / CPASF implementation / commercial platform**
+
+The core engine, however, must not be hard-coded for property assessment.
+
+Industry-specific meaning shall be supplied through **Domain Packs**.
+
+A Domain Pack may contain:
+
+- canonical entities;
+- relationships;
+- state machines;
+- terminology;
+- reference data;
+- code sets;
+- semantic rules;
+- authority sources;
+- temporal rules;
+- validation rules;
+- workflow definitions;
+- conversion exemplars;
+- known legacy patterns;
+- target-platform profiles;
+- test fixtures;
+- reconciliation requirements.
+
+CPASF shall serve as the first demanding Domain Pack.
+
+If the architecture cannot later accommodate another regulated industry without rewriting the conversion engine, the architecture has failed.
+
+---
+
+# 4. Semantic Intermediate Representation
+
+The engine shall define an explicit machine-readable intermediate representation, referred to here as the **Semantic Intermediate Representation (SIR)**.
+
+Every discovered piece of information should be representable as something richer than a key/value pair.
+
+A semantic assertion should be capable of recording:
+
+- semantic concept;
+- source location;
+- source system;
+- source database;
+- source table;
+- source field;
+- source record;
+- original value;
+- normalized value;
+- datatype;
+- units;
+- code-set membership;
+- effective date;
+- observation date;
+- transaction date;
+- system-recorded date;
+- legal or operational period;
+- provenance;
+- authority;
+- derivation status;
+- confidence;
+- transformation history;
+- relationship to other assertions;
+- conflict status;
+- validation state;
+- human review state.
+
+The system should distinguish at minimum:
+
+**Observed fact**  
+Information directly recorded by a source.
+
+**Reported fact**  
+Information supplied by a person or external institution.
+
+**Derived value**  
+Information calculated from other information.
+
+**Estimate**  
+A value intentionally representing an approximation.
+
+**Inference**  
+A semantic conclusion made by the conversion engine.
+
+**Authorized determination**  
+A conclusion that was formally made by an authorized human or process.
+
+**Reference value**  
+A controlled-code or external-reference value.
+
+**System artifact**  
+Information created because of implementation details rather than the underlying business domain.
+
+This distinction must survive conversion.
+
+---
+
+# 5. Semantic Discovery Engine
+
+The system shall inspect unfamiliar datasets and automatically produce an initial semantic inventory.
+
+Discovery shall analyze:
+
+- names;
+- types;
+- nullability;
+- cardinality;
+- uniqueness;
+- distributions;
+- ranges;
+- repeated patterns;
+- foreign-key-like behavior;
+- orphan relationships;
+- timestamps;
+- enumerations;
+- encoded values;
+- record populations;
+- correlated columns;
+- update patterns;
+- historical sequences;
+- naming conventions;
+- duplicate fields;
+- denormalized structures;
+- flags;
+- sentinel values;
+- overloaded fields.
+
+The engine shall not assume that database metadata is correct.
+
+It should infer potential meaning from actual behavior.
+
+For example:
+
+A field named `VALUE` is insufficient evidence that the field represents assessed value.
+
+The system should examine:
+
+- tables surrounding it;
+- records containing it;
+- relationships;
+- reports using it;
+- source code referencing it;
+- calculations applied to it;
+- nearby fields;
+- temporal patterns;
+- documentation;
+- domain vocabulary.
+
+The result shall be a set of **Semantic Hypotheses**.
+
+Each hypothesis shall have:
+
+- candidate meaning;
+- evidence supporting the candidate;
+- evidence contradicting the candidate;
+- confidence;
+- alternative meanings;
+- affected records;
+- proposed canonical mapping.
+
+---
+
+# 6. Semantic Evidence Graph
+
+All migration reasoning shall be represented through an inspectable graph.
+
+Example:
+
+`PARCEL.AV_LAND`
+
+→ referenced by `ROLL_PRINT`
+
+→ summed with `AV_IMP`
+
+→ appears under report heading "Net Taxable Value"
+
+→ historical behavior corresponds with annual enrolled assessments
+
+→ domain corpus defines taxable assessed value
+
+→ candidate mapping:
+
+`AssessmentValueComponent.taxable_amount`
+
+This relationship should not exist only inside an LLM's reasoning context.
+
+It must become durable structured evidence.
+
+The graph should support relationships including:
+
+- supports;
+- contradicts;
+- derives-from;
+- maps-to;
+- supersedes;
+- aliases;
+- represents;
+- calculated-by;
+- populated-by;
+- displayed-by;
+- reported-as;
+- governed-by;
+- valid-during;
+- transformed-by;
+- reconciled-with.
+
+Users must be able to inspect why a mapping exists.
+
+---
+
+# 7. Multi-Modal Legacy-System Archaeology
+
+The engine should treat the entire legacy environment as potential semantic evidence.
+
+It should ingest and correlate:
+
+### Database artifacts
+DDL, schemas, constraints, triggers, stored procedures, views, indexes, dumps and samples.
+
+### Application code
+SQL, COBOL, C#, Java, BASIC, RPG, Python, JavaScript, proprietary scripting languages and configuration files.
+
+### Reports
+Operational reports frequently contain better semantic definitions than schemas.
+
+### UI
+Field labels, grouping, screens, validation messages, menus and workflows can reveal meaning absent from databases.
+
+### Forms
+Official forms may establish meaning, authority, cardinality or required transformations.
+
+### Documentation
+Manuals, requirements, implementation notes, data dictionaries and vendor documents.
+
+### Human explanations
+Subject-matter expert statements become evidence with attribution rather than invisible notes.
+
+### Regulatory or policy sources
+Where relevant, laws, regulations, manuals and policy documents can help establish expected semantics.
+
+The engine should correlate evidence across these modalities.
+
+---
+
+# 8. Schema Is Evidence, Not Authority
+
+Database structure must never automatically dictate semantic structure.
+
+A legacy table may:
+
+- combine multiple business concepts;
+- split one concept across multiple tables;
+- retain obsolete concepts;
+- use implementation-driven keys;
+- store derived values redundantly;
+- encode workflow state implicitly;
+- overwrite history;
+- violate its own documentation.
+
+The Semantic Conversion Engine shall explicitly separate:
+
+**physical source structure**
+
+from:
+
+**inferred semantic structure**
+
+from:
+
+**canonical target structure**.
+
+---
+
+# 9. Temporal Reconstruction
+
+Temporal conversion shall be a first-class architectural concern.
+
+The system must detect and represent distinctions among:
+
+- effective time;
+- transaction time;
+- system time;
+- event time;
+- recording time;
+- filing time;
+- processing time;
+- certification time;
+- retrospective correction;
+- future effective change.
+
+The engine must not flatten multiple temporal dimensions into a single `updated_at` timestamp.
+
+Where a source system lacks explicit temporal semantics, the engine should attempt to reconstruct them from:
+
+- transaction logs;
+- audit tables;
+- snapshots;
+- sequence numbers;
+- batch dates;
+- reporting periods;
+- backup extracts;
+- record creation patterns.
+
+Uncertainty must be represented explicitly.
+
+---
+
+# 10. Historical Reconstruction
+
+The engine should support **historical state reconstruction**.
+
+Given sufficient source material, a user should be able to ask:
+
+> What did this record appear to contain on June 30, 2018?
+
+and separately:
+
+> What do we now believe the record should represent for the 2018 period after later corrections?
+
+Those are different questions.
+
+Historical certified or published states must not be silently rewritten because later information exists.
+
+For CPASF, this becomes especially important for:
+
+- lien-date context;
+- regular roll certification;
+- corrections;
+- escape assessments;
+- supplemental assessments;
+- appeals;
+- base-year adjustments.
+
+The generic engine should treat this pattern as a reusable concept called something such as **Immutable Published State + Subsequent Restatement**.
+
+---
+
+# 11. Identity Resolution
+
+The engine must not assume that legacy primary keys represent durable business identity.
+
+It shall identify:
+
+- vendor IDs;
+- surrogate IDs;
+- APNs/account numbers;
+- reused keys;
+- composite identities;
+- changing identifiers;
+- external identifiers;
+- cross-system identifiers.
+
+It should create durable canonical identity independently of legacy implementation keys.
+
+Identity resolution should support:
+
+- deterministic matches;
+- probabilistic matches;
+- one-to-one;
+- one-to-many;
+- many-to-one;
+- split;
+- merge;
+- successor;
+- predecessor.
+
+Every identity decision must be explainable.
+
+---
+
+# 12. Relationship Discovery
+
+The system must discover relationships even where explicit foreign keys do not exist.
+
+It should identify candidate relationships through:
+
+- matching values;
+- temporal proximity;
+- co-occurrence;
+- source code;
+- SQL joins;
+- UI navigation;
+- naming patterns;
+- cardinality;
+- reference documentation.
+
+Candidate relationships require confidence scores and evidence.
+
+---
+
+# 13. Semantic Mapping
+
+Mappings shall exist at several levels.
+
+### Level 1 — Physical Mapping
+
+`OLDDB.PARCEL.LNDVAL → staging.land_value_raw`
+
+### Level 2 — Semantic Mapping
+
+`LNDVAL → assessed land component`
+
+### Level 3 — Canonical Mapping
+
+`Assessment.ValueComponent[type=LAND].amount`
+
+### Level 4 — Context Mapping
+
+Only valid where:
+
+`roll_type = REGULAR`
+
+and:
+
+`taxability_state = TAXABLE`
+
+### Level 5 — Temporal Mapping
+
+Effective for:
+
+`assessment_year represented by legacy roll record`
+
+### Level 6 — Authority Mapping
+
+Interpretation supported by specific source/document/domain rule.
+
+### Level 7 — Target Mapping
+
+Canonical concept compiled into target-system representation.
+
+A production mapping should ideally reach all seven levels.
+
+---
+
+# 14. Mapping Confidence
+
+Every machine-generated mapping must receive a confidence assessment.
+
+Confidence should not merely be a percentage generated by an LLM.
+
+It should consider independently measurable evidence.
+
+Potential evidence dimensions include:
+
+- lexical similarity;
+- datatype compatibility;
+- distribution compatibility;
+- relationship compatibility;
+- code-set compatibility;
+- temporal behavior;
+- documentation support;
+- source-code support;
+- UI evidence;
+- domain-rule compatibility;
+- known examples;
+- reconciliation behavior.
+
+Confidence shall be decomposable.
+
+A reviewer should be able to see:
+
+> 96% confidence overall, driven by direct documentation, matching calculation behavior and 100% code-set correspondence.
+
+rather than merely:
+
+> Confidence: 96%.
+
+---
+
+# 15. Ambiguity as a First-Class Object
+
+The engine must not force mappings simply because a target field exists.
+
+Ambiguity shall generate an explicit **Semantic Question**.
+
+Example:
+
+> `PROPSTAT` contains values 0–7. Three possible interpretations remain. Values 4 and 7 cannot currently be explained. Production conversion is blocked for 18,422 records.
+
+The question should contain:
+
+- affected concept;
+- source evidence;
+- candidate interpretations;
+- record counts;
+- examples;
+- downstream consequences;
+- proposed resolution;
+- requested human decision.
+
+A human answer should become reusable evidence.
+
+---
+
+# 16. Active Learning Through Human Review
+
+The platform should minimize SME effort.
+
+Instead of asking experts to review millions of mappings, it should identify **high-information questions** whose resolution eliminates the most uncertainty.
+
+Example:
+
+One answer establishing the meaning of `STATUS=4` might resolve 1.8 million records.
+
+The engine should rank questions by:
+
+**uncertainty × record impact × downstream dependency × conversion risk**.
+
+This becomes an active-learning workflow for legacy-system archaeology.
+
+---
+
+# 17. Domain Packs
+
+Domain knowledge must be installable and versioned.
+
+Each Domain Pack should be capable of defining:
+
+- ontology;
+- canonical schemas;
+- relationships;
+- workflow states;
+- legal/operational concepts;
+- semantic aliases;
+- calculations;
+- reference codes;
+- temporal expectations;
+- source-authority hierarchy;
+- migration constraints;
+- test scenarios;
+- known implementation patterns.
+
+The CPASF Domain Pack should eventually understand concepts such as property, property interest, assessment, value components, roll transactions, base-year components, exemptions, transfers, appeals, corrections and valuation evidence.
+
+However, those concepts belong in the Domain Pack—not the generic inference engine.
+
+---
+
+# 18. Rule-Aware Conversion
+
+The engine should understand that some fields cannot be converted correctly without understanding the rules that produced them.
+
+A transformation must therefore be able to reference:
+
+- rule identity;
+- rule version;
+- effective dates;
+- jurisdiction;
+- configuration;
+- inputs;
+- outputs;
+- authority;
+- exceptions.
+
+A conversion rule should be executable and testable.
+
+---
+
+# 19. Semantic Compiler
+
+The long-term architecture should contain an actual compilation process.
+
+A mapping model should be compilable into executable conversion code.
+
+Conceptually:
+
+**Semantic Mapping Model**
+
+↓
+
+**Validated Intermediate Representation**
+
+↓
+
+**Transformation Plan**
+
+↓
+
+**Executable Transformation**
+
+↓
+
+**Validation Plan**
+
+↓
+
+**Reconciliation Plan**
+
+The compiler should be capable of generating:
+
+- SQL;
+- transformation DAGs;
+- Python or equivalent transformation code;
+- API requests;
+- event payloads;
+- validation queries;
+- reconciliation queries.
+
+Generated code must remain traceable to the semantic mapping that produced it.
+
+---
+
+# 20. Bidirectional Explainability
+
+Users must be able to ask:
+
+> Where did target value X come from?
+
+The engine should trace backward:
+
+`Target Value`
+
+← target mapping
+
+← canonical concept
+
+← transformation
+
+← source assertion(s)
+
+← source record(s)
+
+← source system.
+
+The user must also be able to ask:
+
+> What happened to OLDDB.FIELD_X?
+
+The engine should trace forward through every transformation and resulting target representation.
+
+---
+
+# 21. Conversion Lineage
+
+Every target object must retain sufficient lineage to identify:
+
+- originating system;
+- originating records;
+- source fields;
+- source values;
+- transformations;
+- conversion run;
+- mapping version;
+- Domain Pack version;
+- validation results.
+
+No converted record should become semantically orphaned from its origin.
+
+---
+
+# 22. Reproducibility
+
+A conversion run must be reproducible.
+
+The platform shall record:
+
+- source snapshot identity;
+- source hashes;
+- mapping version;
+- Domain Pack version;
+- engine version;
+- transformation code version;
+- configuration;
+- reference data;
+- execution environment;
+- generated artifacts.
+
+A user should later be able to reproduce a prior conversion result.
+
+---
+
+# 23. Source Snapshot Integrity
+
+Before transformation, the engine should create or recognize a stable representation of source inputs.
+
+Original source records must remain distinguishable from:
+
+- cleaned records;
+- interpreted records;
+- transformed records;
+- corrected records.
+
+Conversion must be non-destructive.
+
+---
+
+# 24. Transformation Categories
+
+The engine should classify transformations including:
+
+- direct copy;
+- normalization;
+- datatype conversion;
+- unit conversion;
+- code translation;
+- calculated derivation;
+- aggregation;
+- decomposition;
+- split;
+- merge;
+- identity resolution;
+- temporal reconstruction;
+- inferred value;
+- default value;
+- target-system synthetic value;
+- unsupported source value.
+
+This classification should be queryable.
+
+---
+
+# 25. Semantic Loss Detection
+
+A critical feature shall be detection of information that the target cannot represent.
+
+Example:
+
+> Source supports four ownership-interest types. Target supports only two.
+
+The engine shall not silently collapse them.
+
+It should report:
+
+**Semantic Loss Risk**
+
+and identify:
+
+- source concept;
+- target limitation;
+- affected records;
+- possible strategies;
+- consequences.
+
+---
+
+# 26. Semantic Gain Detection
+
+The inverse should also be detected.
+
+A target may require concepts absent from the source.
+
+The platform should classify required values as:
+
+- derivable;
+- inferable;
+- externally obtainable;
+- human-required;
+- unavailable.
+
+---
+
+# 27. Contradiction Detection
+
+The engine should identify conflicting source assertions.
+
+Example:
+
+Database A says owner = Smith.
+
+Document B says owner = Jones.
+
+The engine should not simply pick one.
+
+It should determine:
+
+- source authority;
+- effective dates;
+- chronology;
+- context;
+- confidence.
+
+Where resolution is impossible, preserve the conflict.
+
+---
+
+# 28. Source Authority Model
+
+Different systems may be authoritative for different facts.
+
+The platform must represent **fact-level authority**.
+
+For example, one system may be authoritative for geometry while another is authoritative for ownership and another for payment history.
+
+There must be no architectural assumption that one database is the "master" of everything.
+
+---
+
+# 29. Conversion Simulation
+
+Before performing production conversion, users should be able to execute a complete semantic simulation.
+
+Simulation shall produce:
+
+- records converted;
+- records rejected;
+- ambiguous mappings;
+- information loss;
+- unresolved identity;
+- rule failures;
+- reconciliation variance;
+- temporal anomalies;
+- unexpected code values;
+- confidence distribution.
+
+---
+
+# 30. Record-Level Reconciliation
+
+Every converted record must be reconcilable.
+
+The system should support comparisons at:
+
+- population;
+- entity;
+- transaction;
+- financial/value;
+- code;
+- relationship;
+- historical;
+- temporal;
+- individual-record levels.
+
+Aggregate totals alone are insufficient.
+
+A system that balances financially while attaching values to the wrong entities has failed.
+
+---
+
+# 31. Semantic Reconciliation
+
+The engine should go beyond numeric reconciliation.
+
+Example questions:
+
+- Did every source ownership interest survive?
+- Did every assessment retain its applicable period?
+- Did every exemption retain its relationship to the correct assessment?
+- Did historical corrections remain distinguishable from original published states?
+- Did each source document remain attached to the concept it evidenced?
+
+This is **semantic reconciliation**.
+
+---
+
+# 32. Invariant Testing
+
+Domain Packs shall define invariants.
+
+Examples:
+
+> Every enrolled assessment references an appraisal unit.
+
+> A certification snapshot cannot change after certification.
+
+> A derived value must identify its inputs.
+
+> A target object created from legacy information must retain source lineage.
+
+The engine should automatically test invariants after every conversion.
+
+---
+
+# 33. Property-Based Testing
+
+Where appropriate, the platform should generate synthetic combinations and attempt to break transformations.
+
+The goal is not simply:
+
+> Does our example convert?
+
+but:
+
+> Under what possible inputs does this transformation stop preserving its claimed semantics?
+
+---
+
+# 34. Differential Testing
+
+Where a legacy runtime remains operational, the engine should support comparative execution.
+
+Supply identical business scenarios to:
+
+- legacy system;
+- canonical model;
+- target system.
+
+Compare behavior.
+
+This may expose hidden rules not evident from schemas or documentation.
+
+---
+
+# 35. Golden Records
+
+The system should maintain curated "Golden Records" representing especially complicated or historically significant scenarios.
+
+Golden Records become regression tests.
+
+A mapping change must not silently alter their meaning.
+
+---
+
+# 36. Migration Coverage Model
+
+The engine shall measure migration completeness across multiple dimensions.
+
+Not simply:
+
+> 98% of columns mapped.
+
+Instead report:
+
+- source fields accounted for;
+- source populations accounted for;
+- business concepts represented;
+- relationships preserved;
+- historical states preserved;
+- rule coverage;
+- temporal coverage;
+- evidence coverage;
+- exception coverage;
+- reconciliation coverage.
+
+A field can be intentionally discarded, but its disposition must be recorded.
+
+Every discovered source field must receive a disposition such as:
+
+- migrated;
+- derived;
+- archived;
+- duplicate;
+- obsolete;
+- implementation-only;
+- intentionally excluded;
+- unresolved.
+
+Nothing disappears silently.
+
+---
+
+# 37. Conversion Readiness Score
+
+The engine should calculate a multidimensional readiness assessment.
+
+Possible dimensions:
+
+- semantic completeness;
+- mapping confidence;
+- unresolved ambiguity;
+- lineage completeness;
+- reconciliation performance;
+- target compatibility;
+- temporal integrity;
+- reference-data completeness;
+- validation coverage;
+- exception rate.
+
+The score should be evidence-derived and decomposable rather than arbitrary.
+
+---
+
+# 38. Explainable AI Requirement
+
+AI may propose.
+
+AI may discover.
+
+AI may classify.
+
+AI may rank.
+
+AI may generate transformations.
+
+AI may generate tests.
+
+AI may identify anomalies.
+
+AI shall not silently promote ambiguous interpretations into authoritative production mappings.
+
+High-impact mappings require human review according to configurable governance policy.
+
+---
+
+# 39. Model Independence
+
+The semantic knowledge accumulated by the platform must not exist solely in one AI model's context window.
+
+Knowledge shall be persisted in structured form.
+
+A different sufficiently capable model should be capable of inspecting the Semantic Evidence Graph and continuing the work.
+
+The product should become smarter because its **knowledge base improves**, not merely because its underlying LLM improves.
+
+---
+
+# 40. Multi-Agent Reasoning
+
+The architecture should permit independent specialized reasoning agents.
+
+Possible roles:
+
+**Archaeologist**  
+Discovers probable legacy meaning.
+
+**Domain Analyst**  
+Compares findings against the Domain Pack.
+
+**Mapper**  
+Proposes canonical mappings.
+
+**Skeptic**  
+Attempts to falsify mappings.
+
+**Temporal Analyst**  
+Examines historical behavior.
+
+**Reconciliation Analyst**  
+Tests resulting populations.
+
+**Code Analyst**  
+Examines application and SQL behavior.
+
+**Migration Engineer**  
+Produces transformations.
+
+**Reviewer**  
+Independently evaluates evidence.
+
+These roles need not correspond to separate commercial AI models, but the architecture should support independent reasoning passes.
+
+---
+
+# 41. Adversarial Review
+
+High-risk mappings should undergo deliberate adversarial review.
+
+The reviewing intelligence receives the proposed mapping and evidence and is asked:
+
+> Find the strongest reason this interpretation could be wrong.
+
+The system should preserve both the proposal and the challenge.
+
+This reduces semantic confirmation bias.
+
+---
+
+# 42. Semantic Memory
+
+Once a legacy pattern has been conclusively interpreted, the system should remember it.
+
+Example:
+
+A particular vendor's database pattern appears across 17 counties.
+
+The engine should identify the similarity and reuse prior knowledge, while still verifying local implementation differences.
+
+This could eventually create a highly valuable library of **Legacy System Fingerprints**.
+
+---
+
+# 43. System Fingerprinting
+
+The engine should recognize recurring vendor/system families from structural patterns even when versions differ.
+
+Fingerprint inputs may include:
+
+- table names;
+- column patterns;
+- relationships;
+- code values;
+- stored procedures;
+- UI terminology;
+- file layouts;
+- report formats.
+
+A fingerprint could suggest known mappings while clearly separating inherited assumptions from locally verified facts.
+
+---
+
+# 44. Mapping Reuse
+
+The platform should support inheritance:
+
+**Vendor family mapping**
+
+→ **version mapping**
+
+→ **customer implementation mapping**
+
+→ **local override**
+
+This could radically reduce conversion costs across organizations using related legacy platforms.
+
+---
+
+# 45. Migration Knowledge Marketplace — Long-Term Concept
+
+The architecture should not preclude eventually packaging reusable migration intelligence.
+
+Examples:
+
+- vendor fingerprints;
+- source-system adapters;
+- code dictionaries;
+- semantic mappings;
+- Domain Packs;
+- validation libraries;
+- legacy signatures;
+- target-system compilers.
+
+Organizations should be able to benefit from prior migration knowledge without exposing another customer's confidential records.
+
+---
+
+# 46. Privacy-Preserving Learning
+
+Cross-customer learning must separate:
+
+**semantic pattern knowledge**
+
+from:
+
+**customer data**.
+
+The system should learn:
+
+> Table configuration X usually represents concept Y.
+
+without retaining:
+
+> Person Z owned parcel Q.
+
+---
+
+# 47. Natural-Language Query
+
+Users should be able to interrogate the migration model.
+
+Examples:
+
+> Which legacy fields contribute to taxable assessed land value?
+
+> Which records have unresolved owner identity?
+
+> Why was this value transformed?
+
+> Show mappings below 85% confidence.
+
+> Which legacy concepts cannot be represented by the target?
+
+> Which mappings depend only on inference rather than documentation?
+
+> What would break if we changed this mapping?
+
+Answers should be derived from structured evidence, not improvised.
+
+---
+
+# 48. Visual Semantic Explorer
+
+The platform should provide a graphical view showing:
+
+**Source System**
+
+→ **Semantic Concept**
+
+→ **Canonical Model**
+
+→ **Target System**
+
+Users should be able to expand nodes and inspect:
+
+- source samples;
+- evidence;
+- mapping rationale;
+- rules;
+- transformations;
+- validations;
+- exceptions.
+
+---
+
+# 49. Impact Analysis
+
+Changing a mapping should immediately reveal downstream impact.
+
+Example:
+
+Changing interpretation of `STAT_CD` affects:
+
+- 3 canonical entities;
+- 2.3 million records;
+- 4 validation rules;
+- 7 transformation rules;
+- 2 target tables;
+- 3 reconciliation tests.
+
+The platform should make semantic dependencies visible before changes are accepted.
+
+---
+
+# 50. Conversion Workbench
+
+The principal UI should function as an engineering workbench.
+
+Users should be able to navigate from:
+
+system → schema → table → field → meaning → mapping → target → transformation → tests → reconciliation.
+
+Ambiguities and failed reconciliations should appear as work queues.
+
+---
+
+# 51. Transformation Debugger
+
+The platform should allow engineers to select a record and watch it move through conversion.
+
+Example:
+
+`Source record`
+
+→ normalization
+
+→ identity resolution
+
+→ semantic interpretation
+
+→ canonical construction
+
+→ rule application
+
+→ target compilation
+
+→ validation.
+
+Every intermediate state should be visible.
+
+---
+
+# 52. What-If Mapping
+
+Users should be able to temporarily change a mapping and simulate consequences without changing the approved migration model.
+
+The system should answer:
+
+> If we interpret this flag differently, what happens?
+
+---
+
+# 53. Migration Digital Twin
+
+Stretch goal:
+
+Construct a semantic digital twin of the legacy system sufficient to model its information behavior without reproducing its software implementation.
+
+This twin would allow:
+
+- querying legacy meaning;
+- validating migration;
+- comparing target behavior;
+- preserving institutional knowledge after legacy retirement.
+
+---
+
+# 54. Legacy Retirement Requirement
+
+A legacy system shall not be considered safely retired merely because its records exist somewhere else.
+
+Retirement readiness means the organization can still explain:
+
+- what historical records meant;
+- what rules produced important results;
+- what information existed at relevant historical times;
+- why values changed;
+- what evidence supported decisions;
+- how legacy concepts map to the successor system.
+
+The conversion engine should measure this explicitly.
+
+---
+
+# 55. Data Conversion as Knowledge Preservation
+
+The program should recognize that migration often destroys institutional knowledge.
+
+Therefore an explicit project objective is:
+
+> Convert both the data and the knowledge necessary to interpret that data.
+
+The semantic model is consequently a deliverable in its own right.
+
+---
+
+# 56. CPASF Proving Ground
+
+The first serious implementation should use CPASF because property assessment creates exceptionally difficult semantic conditions:
+
+- long-lived historical information;
+- legal effective dates;
+- mutable property facts;
+- immutable certified states;
+- multiple authoritative systems;
+- appraisal conclusions;
+- estimated values;
+- corrections;
+- appeals;
+- reference codes;
+- specialized valuation classes;
+- relationships among property, interests, owners and assessments;
+- documentary evidence.
+
+If the engine can accurately model and migrate this environment, simpler domains should become significantly easier.
+
+---
+
+# 57. CPASF Example Semantic Chain
+
+A mature CPASF mapping should eventually be capable of representing something approximately like:
+
+`Legacy field`
+
+→ source vendor definition
+
+→ observed historical behavior
+
+→ business meaning
+
+→ CPASF entity
+
+→ CPASF attribute
+
+→ property/interest context
+
+→ applicable assessment period
+
+→ effective-date semantics
+
+→ source authority
+
+→ legal/operational rule
+
+→ code-set definition
+
+→ conversion transformation
+
+→ target-system representation
+
+→ validation rule
+
+→ reconciliation metric
+
+→ evidence lineage.
+
+That entire chain should be machine readable.
+
+---
+
+# 58. Conversion Manifest
+
+Each completed migration shall generate a machine-readable **Conversion Manifest**.
+
+The manifest should summarize:
+
+- source environments;
+- target environments;
+- Domain Pack;
+- source snapshots;
+- mapping versions;
+- transformations;
+- code sets;
+- rules;
+- unresolved exceptions;
+- reconciliation results;
+- approvals;
+- artifact hashes.
+
+The manifest becomes the migration's permanent technical record.
+
+---
+
+# 59. Conversion Evidence Package
+
+In addition to the machine-readable manifest, the engine should generate an inspectable evidentiary package.
+
+The package should answer:
+
+> What did we convert?
+
+> What did we not convert?
+
+> Why did we map it this way?
+
+> What assumptions were made?
+
+> Who approved material ambiguities?
+
+> How do we know the target reconciles?
+
+This is particularly important for public-sector and regulated migrations.
+
+---
+
+# 60. Semantic Diff
+
+The engine should support comparison between two versions of a migration model.
+
+Not merely:
+
+`mapping.json changed`
+
+but:
+
+> The interpretation of `OWNER_STAT=R` changed from "record owner" to "responsible party." 214,038 target relationships would change.
+
+That is a **semantic diff**.
+
+---
+
+# 61. Migration Regression Detection
+
+Every mapping or Domain Pack change should automatically rerun affected Golden Records and reconciliation tests.
+
+No mapping change should be considered harmless merely because code compiles.
+
+---
+
+# 62. Target-System Compiler Profiles
+
+Targets should be represented through pluggable profiles.
+
+A profile should define:
+
+- target schema;
+- APIs;
+- required concepts;
+- optional concepts;
+- code sets;
+- constraints;
+- relationship rules;
+- import formats;
+- validation rules.
+
+The semantic conversion engine should therefore support:
+
+`Legacy A → CPASF → Vendor X`
+
+and later:
+
+`Legacy A → CPASF → Vendor Y`
+
+without rediscovering Legacy A.
+
+That is a major commercial objective.
+
+---
+
+# 63. Reverse Engineering Target Systems
+
+Where target documentation is incomplete, the same Semantic Discovery Engine should be usable against the target environment.
+
+The system can therefore reason about both sides of a migration.
+
+---
+
+# 64. Automated Migration Planning
+
+Given semantic discovery results, the system should automatically generate a migration plan containing:
+
+- discovered systems;
+- required extraction tasks;
+- mapping work;
+- unresolved questions;
+- transformation dependencies;
+- target prerequisites;
+- validation tasks;
+- reconciliation tasks;
+- high-risk areas.
+
+---
+
+# 65. Risk-Based Prioritization
+
+Not all mappings have equal risk.
+
+The engine should identify high-risk concepts based on:
+
+- record volume;
+- financial/value impact;
+- regulatory significance;
+- ambiguity;
+- temporal complexity;
+- relationship complexity;
+- irreversible semantic loss.
+
+Review resources should be concentrated there.
+
+---
+
+# 66. Performance
+
+The semantic model may be sophisticated, but production transformation must scale.
+
+The eventual engine should support:
+
+- millions to billions of records;
+- incremental conversion;
+- parallel processing;
+- resumable jobs;
+- deterministic replay;
+- partitioned reconciliation.
+
+AI inference should not be required individually for every production row where a deterministic mapping has already been learned.
+
+AI should discover transformations.
+
+Compiled deterministic processes should execute them wherever possible.
+
+This separation is essential to cost, performance and reproducibility.
+
+---
+
+# 67. Discovery vs Execution Separation
+
+Architecturally distinguish:
+
+**Discovery Plane**
+
+AI-heavy, exploratory, inferential.
+
+**Semantic Control Plane**
+
+Mappings, evidence, rules, approvals and versions.
+
+**Execution Plane**
+
+Deterministic high-scale transformation.
+
+**Assurance Plane**
+
+Validation, reconciliation, audit and regression.
+
+This separation is strongly preferred.
+
+---
+
+# 68. Failure Behavior
+
+The engine must fail visibly.
+
+Unrecognized values, broken relationships, conflicting mappings and unresolved transformations must enter explicit exception states.
+
+The system must never quietly convert uncertainty into null, zero, blank, "UNKNOWN," or a convenient default unless an approved rule explicitly requires it.
+
+---
+
+# 69. Determinism
+
+Once a mapping is approved and compiled, identical source data under identical versions and configuration shall produce identical converted results.
+
+Any use of probabilistic inference during production execution must be explicit and exceptional.
+
+---
+
+# 70. Security
+
+The platform should assume source datasets may contain confidential information.
+
+Requirements include:
+
+- least privilege;
+- source isolation;
+- encryption;
+- auditable access;
+- redaction support;
+- model-data boundary controls;
+- secrets separation;
+- customer isolation.
+
+Semantic learning must not leak customer-specific information.
+
+---
+
+# 71. API-First Architecture
+
+Core platform functionality should be accessible programmatically.
+
+Important resource families may include:
+
+`/sources`
+
+`/schemas`
+
+`/concepts`
+
+`/assertions`
+
+`/relationships`
+
+`/hypotheses`
+
+`/mappings`
+
+`/questions`
+
+`/rules`
+
+`/transformations`
+
+`/runs`
+
+`/exceptions`
+
+`/reconciliations`
+
+`/evidence`
+
+`/manifests`
+
+Naming may change, but conceptual separability should remain.
+
+---
+
+# 72. Version Everything
+
+Version:
+
+- Domain Packs;
+- ontology;
+- mappings;
+- transformation rules;
+- reference data;
+- code sets;
+- source fingerprints;
+- target profiles;
+- tests;
+- conversion runs.
+
+A historical conversion must remain interpretable under the versions that produced it.
+
+---
+
+# 73. Minimum Prototype Demonstration
+
+A credible prototype should demonstrate far more than moving records.
+
+Select a deliberately messy source dataset and demonstrate that the system can:
+
+1. inspect the source automatically;
+2. infer candidate semantics;
+3. identify relationships not explicitly declared;
+4. map concepts into a canonical model;
+5. generate confidence/evidence;
+6. identify at least one ambiguity;
+7. obtain a human resolution;
+8. compile a transformation;
+9. execute it;
+10. trace a target record backward;
+11. identify semantic loss or incompatibility;
+12. reconcile source and target populations;
+13. generate a conversion manifest.
+
+A beautiful UI without this semantic lifecycle does not satisfy the experiment.
+
+---
+
+# 74. Advanced Prototype Demonstration
+
+The stronger demonstration would use two unrelated legacy schemas representing substantially similar domain concepts.
+
+The engine should independently discover that:
+
+`Legacy System A concept X`
+
+and:
+
+`Legacy System B concept Q`
+
+both correspond to:
+
+`Canonical Concept C`.
+
+Then show both converted through the same canonical representation.
+
+That would provide substantial evidence that the platform has moved beyond custom ETL.
+
+---
+
+# 75. Exceptional Demonstration
+
+An exceptional implementation would ingest:
+
+- legacy database;
+- application source code;
+- a report;
+- domain documentation;
+
+and use all four sources to infer a mapping that could not have been confidently determined from the database schema alone.
+
+The system would show precisely which evidence increased confidence.
+
+That would be an important technical milestone.
+
+---
+
+# 76. Research Challenge: Semantic Entropy
+
+Investigate whether migration uncertainty can be quantified.
+
+Define a concept analogous to **Semantic Entropy** representing the amount of unresolved meaning within a source environment.
+
+As evidence accumulates and ambiguity is resolved, semantic entropy should decrease.
+
+This could potentially become a useful measure of migration readiness.
+
+Do not manufacture a mathematically meaningless metric merely because the phrase sounds impressive.
+
+Either establish a defensible formulation or document why it should remain conceptual.
+
+---
+
+# 77. Research Challenge: Semantic Distance
+
+Investigate a measure of **Semantic Distance** between source and target systems.
+
+Examples:
+
+A source and target may contain nearly identical concepts despite completely different schemas.
+
+Conversely, structurally similar schemas may represent substantially different concepts.
+
+A useful Semantic Distance model could help estimate migration complexity before full discovery.
+
+Again, mathematical rigor is preferred over decorative scoring.
+
+---
+
+# 78. Research Challenge: Information Conservation
+
+Explore the idea of a **Semantic Conservation Test**.
+
+For a given conversion:
+
+> Can every materially significant source concept be accounted for in the canonical or target representation?
+
+Loss is acceptable only when explicitly identified and dispositioned.
+
+This is analogous to conservation accounting for information meaning.
+
+---
+
+# 79. Research Challenge: Counterfactual Validation
+
+The engine should eventually be capable of asking:
+
+> If our interpretation of this source field were wrong, what observable results would differ?
+
+The system could then search for those differences in historical data.
+
+This turns semantic inference into a falsifiable process instead of pure pattern matching.
+
+---
+
+# 80. Research Challenge: Autonomous Hypothesis Testing
+
+The system should not merely generate hypotheses.
+
+It should generate tests that attempt to disprove them.
+
+Example:
+
+Hypothesis:
+
+`XFER_TYPE=3 means partial transfer.`
+
+Generated tests may examine:
+
+- ownership changes;
+- percentage changes;
+- downstream reassessment behavior;
+- reports;
+- source-code branches.
+
+This is a major desired capability.
+
+---
+
+# 81. Research Challenge: Semantic Archaeology Agent
+
+Develop an agent specifically optimized to reverse-engineer poorly documented enterprise applications.
+
+It should iteratively:
+
+**Observe → Hypothesize → Seek Evidence → Test → Revise → Escalate**
+
+rather than performing a single LLM prompt over schema metadata.
+
+---
+
+# 82. Research Challenge: Institutional Knowledge Recovery
+
+Given enough historical artifacts, determine whether the engine can reconstruct business rules no longer understood by current staff.
+
+Any reconstructed rule must be labeled as inferred and accompanied by evidence.
+
+The system shall never imply that inferred historical behavior carries current authority merely because software once implemented it.
+
+---
+
+# 83. Research Challenge: Conversion Confidence at Record Level
+
+A mapping may generally be reliable while individual records remain unusual.
+
+Therefore investigate record-level semantic confidence.
+
+Example:
+
+Mapping confidence = 99.8%.
+
+Record 184287 = low confidence because its code combination was never observed elsewhere.
+
+The platform should surface those records automatically.
+
+---
+
+# 84. Research Challenge: Unknown Unknown Detection
+
+A sophisticated system should identify situations that do not match any known pattern.
+
+Instead of forcing classification, it should be capable of saying:
+
+> This population behaves unlike the other populations represented by this mapping. Investigation is recommended.
+
+Outlier detection should feed semantic investigation.
+
+---
+
+# 85. Acceptance Philosophy
+
+The standard for success is not:
+
+**"The records loaded."**
+
+The standard is:
+
+**"We can demonstrate what the source information meant, how it was converted, why the transformation was reasonable, what uncertainty remains, and whether the target accurately represents the source semantics."**
+
+---
+
+# 86. Architectural Failure Conditions
+
+The design should be considered unsuccessful if any of the following become fundamental assumptions:
+
+- one-off field mapping;
+- hard-coded CPASF logic inside the generic engine;
+- undocumented AI-generated mappings;
+- LLM reasoning that disappears after a prompt;
+- schema names treated as semantic authority;
+- destructive normalization;
+- history flattened into current state;
+- confidence scores without evidence;
+- production AI guesses on every row;
+- aggregate reconciliation as the only assurance mechanism;
+- unexplained defaults;
+- conversion without durable provenance.
+
+---
+
+# 87. Expected Engineering Deliverables
+
+The implementation challenge should produce at minimum:
+
+### Architecture
+A rigorous architecture describing Discovery, Semantic Control, Execution and Assurance planes.
+
+### Semantic model
+Machine-readable schema for assertions, concepts, mappings, hypotheses, evidence, temporal context and confidence.
+
+### Evidence graph
+Working representation of why mappings exist.
+
+### Discovery engine
+Initial automatic profiling and semantic hypothesis generation.
+
+### Canonical mapper
+Source-to-SIR mapping engine.
+
+### Transformation compiler
+A mechanism that converts an approved mapping into deterministic executable transformation logic.
+
+### Validation framework
+Structural, semantic, temporal and invariant validation.
+
+### Reconciliation framework
+Record and population reconciliation.
+
+### Human-review workflow
+Explicit approval and ambiguity resolution.
+
+### Demonstration dataset
+A deliberately difficult source dataset.
+
+### End-to-end demonstration
+A traceable migration from source through canonical representation to target.
+
+### Test suite
+Tests proving reproducibility, lineage, rejection behavior and mapping integrity.
+
+### Technical paper
+Explain where the implementation succeeds, where semantic reasoning remains weak, and what architecture would be required to advance it.
+
+---
+
+# 88. AI Attribution and Review
+
+AI-generated implementation work should identify the model responsible for material commits or pull requests.
+
+Major architectural work should receive an independent model review.
+
+The second reviewer should evaluate not merely code quality but whether the implementation actually satisfies the semantic intent of this specification.
+
+A system that technically implements an endpoint called `/semantic-mapping` while performing ordinary column matching has not complied.
+
+---
+
+# 89. Challenge Objective
+
+The purpose of this exercise is not to finish a commercial migration platform in one development cycle.
+
+The purpose is to determine whether we can establish the **correct intellectual architecture** for something significantly more powerful than today's conventional migration tooling.
+
+The prototype should deliberately attempt at least one capability that seems slightly unreasonable.
+
+If every feature in the implementation is already commonplace in existing ETL software, the challenge was insufficiently ambitious.
+
+---
+
+# 90. North-Star Capability
+
+The long-term system should be able to receive an unfamiliar legacy application and ultimately answer:
+
+> **What does this system know?**
+
+> **Why do we believe that is what it knows?**
+
+> **When was that information applicable?**
+
+> **Where did that knowledge originate?**
+
+> **How does it correspond to our canonical understanding of the domain?**
+
+> **Can the new system represent it faithfully?**
+
+> **What would be lost if we converted it?**
+
+> **Can we prove that the conversion preserved what mattered?**
+
+When the platform can answer those questions reliably, data conversion stops being a one-time plumbing exercise.
+
+It becomes **semantic knowledge engineering**.
+
+And at that point the organization is no longer merely migrating databases.
+
+It is compiling institutional knowledge from one computational representation into another.
