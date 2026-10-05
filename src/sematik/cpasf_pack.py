@@ -50,11 +50,6 @@ def cpasf_pack(version: str = "0.1.0") -> DomainPack:
     return pack
 
 
-def assessment_has_appraised_unit(assertions) -> bool:
-    concepts = {a.concept for a in assertions}
-    return "Assessment" in concepts and any(c.startswith("ValuationEvidence") or c == "Property" for c in concepts)
-
-
 def every_assessment_references_appraised_unit(assertions) -> bool:
     """Invariant (spec §32 example): every enrolled assessment references an
     appraisal unit."""

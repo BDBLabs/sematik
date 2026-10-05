@@ -1,4 +1,5 @@
-from sematik.cpasf_pack import (CPASF_INVARIANTS, derived_values_identify_inputs,
+from sematik.cpasf_pack import (CPASF_INVARIANTS, cpasf_pack,
+                                derived_values_identify_inputs,
                                 every_assessment_references_appraised_unit)
 from sematik.model import Assertion, Confidence, DerivationStatus, Provenance
 from sematik.reconcile import semantic_reconcile
@@ -28,3 +29,7 @@ def test_semantic_reconcile_uses_pack_invariants():
     good = [_assertion("Assessment"), _assertion("Property")]
     report = semantic_reconcile(good, CPASF_INVARIANTS)
     assert report["invariants_checked"] == 3 and report["failures"] == []
+
+
+def test_pack_exposes_invariants():
+    assert cpasf_pack().invariants is CPASF_INVARIANTS
