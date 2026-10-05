@@ -125,6 +125,23 @@ class ReplayRecord:
     replayability: Replayability
     executed_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
+    def __post_init__(self) -> None:
+        if not all(
+            value.strip() for value in (self.producer, self.operation, self.version)
+        ):
+            raise ValueError("replay producer, operation, and version are required")
+        for name, value in (
+            ("input_digest", self.input_digest),
+            ("parameters_digest", self.parameters_digest),
+            ("result_digest", self.result_digest),
+        ):
+            if len(value) != 64:
+                raise ValueError(f"{name} must be a full SHA-256 digest")
+            try:
+                int(value, 16)
+            except ValueError as exc:
+                raise ValueError(f"{name} must be hexadecimal") from exc
+
     @classmethod
     def build(
         cls,
@@ -254,6 +271,10 @@ class InvestigationPacket:
     probes: list[EvidenceProbe] = field(default_factory=list)
     evidence: list[EvidenceItem] = field(default_factory=list)
     unresolved_questions: list[str] = field(default_factory=list)
+
+    def __post_init__(self) -> None:
+        if not self.artifact_ref.strip():
+            raise ValueError("artifact_ref is required")
 
     def _interpretation_ids(self) -> set[str]:
         return {item.id for item in self.interpretations}
@@ -389,6 +410,12 @@ class ProcessObservation:
             raise ValueError(
                 "process observation requires a full SHA-256 digest"
             )
+        try:
+            int(self.content_digest, 16)
+        except ValueError as exc:
+            raise ValueError(
+                "process observation digest must be hexadecimal"
+            ) from exc
 
     def as_uninterpreted_evidence(
         self, *, hypothesis_id: str, producer_ref: str
