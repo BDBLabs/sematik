@@ -1,0 +1,16 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "sematik"
+version = "0.0.1"
+description = "Semantic Conversion Engine — meaning-based data conversion over SIR"
+requires-python = ">=3.11"
+dependencies = []
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/sematik"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]

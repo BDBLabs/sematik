@@ -1,0 +1,6 @@
+{"rows": [
+  {"_id": "r1", "APN": "001-002", "LNDVAL": 120000, "AV_IMP": 80000, "XFER": "REG"},
+  {"_id": "r2", "APN": "001-003", "LNDVAL": 95000,  "AV_IMP": 45000, "XFER": "PT"},
+  {"_id": "r3", "APN": "001-004", "LNDVAL": 210000, "AV_IMP": 150000, "XFER": "UNK9"},
+  {"_id": "r4", "APN": "001-005", "LNDVAL": 0,      "AV_IMP": 0,     "XFER": "REG"}
+]}

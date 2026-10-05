@@ -1,0 +1,81 @@
+# Sematik Architecture
+
+Status: draft v0.1 (2026-10-05)
+
+## Planes (spec §67)
+
+- **Discovery plane** — AI-friendly, exploratory: profiles sources, proposes
+  semantic hypotheses, ranks ambiguity. Never writes to canonical mappings.
+- **Semantic Control plane** — the authority for approved mappings, evidence
+  graph, Domain Packs, versions, approvals. All state durable & versioned.
+- **Execution plane** — deterministic, compiled transformations. No LLM calls
+  at row level.
+- **Assurance plane** — validation, reconciliation, invariants, manifests,
+  regression (golden records), audit.
+
+Dependencies flow downward only: Discovery → proposes to Control → Control
+approves → Execution → Assurance validates. Nothing flows back *silently*;
+Discoveries propose, Assurance findings become questions in Control.
+
+## Core data model
+
+- `Concept` — a domain concept in a Domain Pack (name, definition, aliases,
+  invariants).
+- `Assertion` — a claim about some fact: subject, predicate/concept, value,
+  units, code-set, temporal context, derivation status, provenance, authority,
+  confidence, source reference.
+- `Provenance` — source system/db/table/field/record + snapshot id.
+- `TemporalContext` — distinct dimensions: effective/transaction/system/event/
+  recording/filing times + period; uncertainty explicit.
+- `Hypothesis` — a candidate interpretation of a source artifact with
+  evidence for/against, confidence, alternatives, affected records, proposed
+  mapping.
+- `EvidenceRef` — an artifact id + extract + stance (supports/contradicts/...).
+- `Mapping` — 7 levels (physical → semantic → canonical → context → temporal →
+  authority → target), confidence decomposition, rule refs.
+- `Question` — first-class ambiguity object blocking conversion until
+  resolved; ranked by uncertainty × impact × dependency × risk.
+- `Transformation` — classification, executable plan, inputs/outputs, rule refs.
+- `Run` — a conversion execution: versions, snapshot hashes, artifact hashes,
+  counts, reconciliation, exceptions, approvals → `ConversionManifest`.
+
+## Evidence graph
+
+Nodes: source artifacts, hypotheses, assertions, concepts, mappings, rules,
+transformations, runs. Edges: supports, contradicts, derives-from, maps-to,
+supersedes, aliases, represents, calculated-by, populated-by, displayed-by,
+reported-as, governed-by, valid-during, transformed-by, reconciled-with.
+
+The graph is the durable, inspectable record of *why* a mapping exists.
+
+## Domain Packs
+
+Versioned, installable bundles: ontology/concepts, code sets, reference data,
+temporal/authority rules, validation/invariant rules, known legacy patterns
+(system fingerprints), conversion exemplars, reconciliation requirements,
+golden records. CPASF is the first pack; the engine stays domain-agnostic.
+
+## Compiler
+
+Approved `Mapping` → validated SIR IR → transformation plan → executable
+deterministic program (Python now; SQL later) → validation plan →
+reconciliation plan. Generated artifacts must reference their source mapping,
+versions, and snapshot hashes.
+
+## Failure & determinism (spec §68/69)
+
+- Unrecognized values, broken relationships, conflicts → explicit exception
+  state. Never silent nulls/defaults.
+- Approved + compiled + identical inputs/versions ⇒ identical outputs.
+  Probabilistic inference during production execution is only allowed as an
+  explicit, recorded exception.
+
+## Minimum prototype (spec §73)
+
+One messy fixture dataset → profile → hypotheses → canonical mapping →
+compile → execute → trace a target record → reconcile → manifest.
+
+AI-Model: fledge-alpha-free
+AI-Provider: opencode
+AI-Tool: OpenCode
+AI-Role: Author
