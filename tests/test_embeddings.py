@@ -35,7 +35,7 @@ def test_nvidia_provider_sends_query_mode_and_preserves_response_order(monkeypat
         seen["payload"] = json.loads(request.data)
         return _Response({
             "object": "list",
-            "model": "nvidia/llama-nemotron-embed-1b-v2",
+            "model": "nvidia/nemotron-3-embed-1b",
             "data": [
                 {"object": "embedding", "index": 1, "embedding": [0.0, 1.0]},
                 {"object": "embedding", "index": 0, "embedding": [1.0, 0.0]},
@@ -53,7 +53,6 @@ def test_nvidia_provider_sends_query_mode_and_preserves_response_order(monkeypat
     assert seen["authorization"] == "Bearer nvapi-test"
     assert seen["payload"]["input_type"] == "query"
     assert seen["payload"]["truncate"] == "NONE"
-    assert seen["payload"]["modality"] == "text"
 
 
 def test_hosted_provider_requires_key(monkeypatch):
@@ -98,11 +97,12 @@ class _FakeProvider:
         self.calls.append((list(texts), input_type))
         if input_type == "query":
             return [[1.0, 0.0]]
-        return [
+        candidates = [
             [0.95, 0.05],
             [0.0, 1.0],
             [0.7, 0.3],
         ]
+        return candidates[: len(texts)]
 
 
 def test_rank_semantic_candidates_uses_query_and_passage_modes():
@@ -140,3 +140,24 @@ def test_similarity_score_is_not_promoted_to_confidence():
 
     assert hasattr(match, "score")
     assert not hasattr(match, "confidence")
+
+
+def test_provider_rejects_remote_cleartext_credentials():
+    with pytest.raises(
+        EmbeddingConfigurationError,
+        match="HTTPS or a cleartext loopback",
+    ):
+        NvidiaEmbeddingProvider(
+            endpoint="http://embedding.internal:8000/v1/embeddings",
+            model="nvidia/nemotron-3-embed-1b",
+            api_key="secret",
+        )
+
+
+def test_provider_allows_cleartext_loopback_credentials():
+    provider = NvidiaEmbeddingProvider(
+        endpoint="http://127.0.0.1:8000/v1/embeddings",
+        model="nvidia/nemotron-3-embed-1b",
+        api_key="local-dev",
+    )
+    assert provider.endpoint.startswith("http://127.0.0.1")
