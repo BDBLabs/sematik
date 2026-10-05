@@ -58,3 +58,17 @@ class EvidenceGraph:
                     seen.add(e.dst)
                     stack.append(e.dst)
         return out
+
+    def to_json(self) -> str:
+        import json
+        return json.dumps(
+            {"nodes": self.nodes, "edges": [vars(e) for e in self.edges]},
+            sort_keys=True, indent=2)
+
+    @classmethod
+    def from_json(cls, payload: str) -> "EvidenceGraph":
+        import json
+        raw = json.loads(payload)
+        g = cls(nodes=raw["nodes"])
+        g.edges = [Edge(**e) for e in raw["edges"]]
+        return g
