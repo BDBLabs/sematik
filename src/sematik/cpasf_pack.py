@@ -44,11 +44,37 @@ def cpasf_pack(version: str = "0.1.0") -> DomainPack:
         version=version,
         canonical_concepts=CPASF_CONCEPTS,
         code_sets=code_sets,
+        invariants=CPASF_INVARIANTS,
         known_patterns=["CAMA ROLL_PRINT", "PARCEL+AV_LAND+AV_IMP layout", "XFER_TYPE 0-7 enumeration"],
     )
     return pack
 
 
-def assessment_has_appraised_unit(assertions) -> bool:
-    concepts = {a.concept for a in assertions}
-    return "Assessment" in concepts and any(c.startswith("ValuationEvidence") or c == "Property" for c in concepts)
+def every_assessment_references_appraised_unit(assertions) -> bool:
+    """Invariant (spec §32 example): every enrolled assessment references an
+    appraisal unit."""
+    cs = [a.concept for a in assertions]
+    return not ("Assessment" in cs and "Property" not in cs)
+
+
+def derived_values_identify_inputs(assertions) -> bool:
+    """Invariant: a derived value must identify its inputs (spec §32)."""
+    from .model import DerivationStatus
+    return all(a.derivation != DerivationStatus.DERIVED_VALUE
+               or a.transformation_history for a in assertions)
+
+
+def target_from_legacy_retains_lineage(assertions) -> bool:
+    """Invariant: a target object created from legacy information must retain
+    source lineage (spec §32)."""
+    from .model import DerivationStatus
+    return all(a.derivation != DerivationStatus.DERIVED_VALUE
+               or (a.provenance.source_system and a.transformation_history)
+               for a in assertions)
+
+
+CPASF_INVARIANTS = [
+    ("Assessment references an appraisal unit", every_assessment_references_appraised_unit),
+    ("Derived value identifies its inputs", derived_values_identify_inputs),
+    ("Target object retains source lineage", target_from_legacy_retains_lineage),
+]
