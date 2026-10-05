@@ -19,6 +19,8 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Mapping
 
+from .egress import DataClassification
+
 
 class EvidenceStance(str, Enum):
     SUPPORTS = "supports"
@@ -75,6 +77,7 @@ class SourceSpan:
     content_digest: str
     excerpt: str = ""
     observed_at: datetime | None = None
+    classification: DataClassification = DataClassification.INTERNAL
 
     def __post_init__(self) -> None:
         if not self.source_ref.strip():
@@ -97,6 +100,7 @@ class SourceSpan:
         text: str,
         retain_excerpt: bool = True,
         observed_at: datetime | None = None,
+        classification: DataClassification = DataClassification.INTERNAL,
     ) -> "SourceSpan":
         return cls(
             source_ref=source_ref,
@@ -104,6 +108,7 @@ class SourceSpan:
             content_digest=hashlib.sha256(text.encode("utf-8")).hexdigest(),
             excerpt=text if retain_excerpt else "",
             observed_at=observed_at,
+            classification=classification,
         )
 
 
@@ -364,6 +369,7 @@ class ProcessObservation:
     source_locator: str
     content_digest: str
     occurred_at: datetime
+    classification: DataClassification = DataClassification.INTERNAL
     notes: str = ""
 
     def __post_init__(self) -> None:
@@ -401,6 +407,7 @@ class ProcessObservation:
             content_digest=self.content_digest,
             excerpt=self.notes,
             observed_at=self.occurred_at,
+            classification=self.classification,
         )
         replay = ReplayRecord.build(
             producer=producer_ref,
