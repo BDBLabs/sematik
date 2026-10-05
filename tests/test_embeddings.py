@@ -124,7 +124,7 @@ def test_rank_semantic_candidates_uses_query_and_passage_modes():
     assert ranked[0].score > ranked[1].score
     assert ranked[0].provider == "fake"
     assert ranked[0].model == "fake-embed-v1"
-    assert len(ranked[0].source_digest) == 16
+    assert len(ranked[0].source_digest) == 64
     assert provider.calls[0][1] == "query"
     assert provider.calls[1][1] == "passage"
 
