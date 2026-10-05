@@ -287,3 +287,22 @@ def test_retrieval_evaluation_reports_recall_and_misses():
     assert result.recall_at == {1: 0.5, 2: 1.0}
     assert result.misses_at[1] == ("base-date-hard-negative",)
     assert result.misses_at[2] == ()
+
+
+def test_governance_metadata_is_immutable():
+    policy = EgressPolicy.conservative_government_default()
+    with pytest.raises(TypeError):
+        policy.allowed[EgressDestination.HOSTED_EXTERNAL] = frozenset()
+
+    item = EvidenceItem(
+        hypothesis_id="interp_1",
+        stance=EvidenceStance.UNKNOWN,
+        method=EvidenceMethod.STRUCTURAL,
+        authority=EvidenceAuthority.INFERRED,
+        source=_source(),
+        replay=_replay(),
+        producer_ref="test",
+        scope={"system": "legacy"},
+    )
+    with pytest.raises(TypeError):
+        item.scope["system"] = "rewritten"
