@@ -69,3 +69,22 @@ AI-Model: GPT-6 (exact deployed version unavailable)
 AI-Provider: OpenAI
 AI-Tool: Codex
 AI-Role: Reviewed
+
+## Monitor follow-up — PR #11 merged, implementation rejection remains
+
+Decision: REJECT for implementation acceptance at 84668ad0e2810e0cf2c9e1e5b5911d85abbc6556.
+
+PR #11 was merged externally on 2026-10-05 at 03:46:06 UTC. This monitor did not approve or merge it. Its orientation-only change does not address the implementation findings. The merged tree is identical to reviewed head bcac457da740b4ccafc953e45a589c2f47f566ea; no implementation tests were repeated because no code changed.
+
+The prior local follow-up entry is absent from this checkout; the published review remains available at https://github.com/BDBLabs/sematik/pull/11#pullrequestreview-5409832320. Preserve its findings alongside the original blockers above:
+
+- HIGH: IdentityRegistry.register silently overwrites a source identity's canonical association while retaining contradictory old lineage. Require idempotent repeat registration and explicit governed conflict/reassignment handling.
+- HIGH: semantic_diff reports meaning_changed=False for changed mapping context or Domain Pack despite changed digests. Compare those semantic dependencies and add regression tests.
+- MEDIUM: identity confidence accepts NaN. Reject non-finite confidence values.
+
+Validation from the unchanged reviewed tree: 14 tests passed; targeted counterexamples reproduced these defects. No open PR is currently available. Next action: open an implementation-fix PR with regression coverage and the finding-to-fix mapping. Routine review remains delegated; no additional Bill approval is needed to resubmit. The existing cross-model verification and GitHub self-approval limitations remain unresolved.
+
+AI-Model: GPT-6 (exact deployed version unavailable)
+AI-Provider: OpenAI
+AI-Tool: Codex
+AI-Role: Reviewed
