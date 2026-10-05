@@ -8,6 +8,28 @@ from dataclasses import dataclass, field
 import uuid
 
 
+def _norm(s: str) -> str:
+    return "".join(ch.lower() for ch in s if ch.isalnum())
+
+
+def probabilistic_match(a: dict[str, str], b: dict[str, str],
+                        keys: list[str], *, threshold: float = 0.8) -> tuple[bool, float, list[str]]:
+    """Similarity over normalized key fields (spec §11: probabilistic matching
+    must be explicit, logged, and confidence-tagged — never silent)."""
+    if not keys:
+        return False, 0.0, ["no keys supplied"]
+    hits, misses = 0, 0
+    misses_list = []
+    for k in keys:
+        if _norm(a.get(k, "")) == _norm(b.get(k, "")) and a.get(k):
+            hits += 1
+        else:
+            misses += 1
+            misses_list.append(k)
+    confidence = hits / len(keys)
+    return confidence >= threshold, round(confidence, 3), misses_list
+
+
 @dataclass
 class IdentityDecision:
     canonical_id: str
