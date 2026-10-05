@@ -94,6 +94,42 @@ def compile_mapping(mapping: Mapping, steps: list[PlanStep]) -> TransformationPl
     )
 
 
+def compile_mapping_to_sql(mapping: Mapping, steps: list[PlanStep], *,
+                           source_table: str, dialect: str = "postgres") -> str:
+    """Emit an equivalent SELECT for the deterministic plan (spec §19:
+    the compiler must be able to generate SQL, not only Python). The SQL is
+    a *read-only* compilation of the mapping — traceability is preserved by
+    embedding the mapping digest."""
+    if not mapping.approved():
+        raise CompilationError("mapping must be approved before compilation")
+    select_exprs: list[str] = []
+    identity_cols: list[str] = []
+    for step in steps:
+        if step.op == "copy":
+            select_exprs.append(f"{step.args['from']} AS {step.args['to']}")
+        elif step.op == "derive_sum":
+            parts = " + ".join(step.args["parts"])
+            select_exprs.append(f"({parts}) AS {step.args['to']}")
+        elif step.op == "code_translate":
+            whens = " ".join(
+                f"WHEN {k!r} THEN {v!r}" for k, v in step.args["table"].items())
+            select_exprs.append(
+                f"CASE {step.args['from']} {whens} ELSE NULL END AS {step.args['to']}")
+        elif step.op == "assert_not_null":
+            identity_cols.append(step.args["field"])
+        else:
+            raise CompilationError(f"no SQL lowering for op {step.op}")
+    if not select_exprs:
+        raise CompilationError("no compilable steps")
+    where = ""
+    if identity_cols:
+        where = "\nWHERE " + " AND ".join(f"{c} IS NOT NULL" for c in identity_cols)
+    digest = mapping.digest()
+    return (f"-- compiled from mapping {mapping.id} digest={digest}\n"
+            f"-- canonical concept: {mapping.canonical_concept}\n"
+            f"SELECT {', '.join(select_exprs)}\nFROM {source_table}{where};")
+
+
 def assertion_from_plan_output(plan: TransformationPlan, target: dict[str, Any],
                                provenance: Provenance, mapping: Mapping) -> Assertion:
     """Wrap a converted target value as an assertion with lineage."""
