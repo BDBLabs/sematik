@@ -4,8 +4,15 @@ matching is an explicit, logged decision, not a default."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+import math
 import uuid
+from dataclasses import dataclass, field
+
+
+class IdentityConflict(Exception):
+    """A source identity already resolves elsewhere — reassignment needs
+    an explicit governed decision (reason + actor), never a silent
+    overwrite (spec §11: every identity decision must be explainable)."""
 
 
 def _norm(s: str) -> str:
@@ -51,15 +58,54 @@ class IdentityRegistry:
     def register(self, source_system: str, source_key: str, canonical_id: str | None = None,
                  *, strategy: str = "deterministic-exact", confidence: float = 1.0,
                  rationale: list[str] | None = None) -> str:
-        if confidence < 0 or confidence > 1:
-            raise ValueError("confidence in [0,1]")
+        if not (isinstance(confidence, (int, float)) and math.isfinite(confidence)
+                and 0 <= confidence <= 1):
+            raise ValueError("confidence must be a finite number in [0,1]")
+        key = (source_system, source_key)
+        if key in self.by_source:
+            existing = self.by_source[key]
+            if canonical_id is not None and canonical_id != existing:
+                raise IdentityConflict(
+                    f"{source_system}/{source_key} already resolves to "
+                    f"{existing}; use reassign() with a recorded reason to move it")
+            return existing
         cid = canonical_id or "id_" + uuid.uuid4().hex[:10]
         d = IdentityDecision(canonical_id=cid, source_system=source_system,
                              source_key=source_key, strategy=strategy,
                              confidence=confidence, rationale=rationale or [])
         self.by_canonical.setdefault(cid, []).append(d)
-        self.by_source[(source_system, source_key)] = cid
+        self.by_source[key] = cid
         return cid
+
+    def reassign(self, source_system: str, source_key: str, new_canonical_id: str,
+                 *, reason: str, actor: str = "",
+                 strategy: str = "manual", confidence: float = 1.0,
+                 rationale: list[str] | None = None) -> str:
+        """Governed reassignment: moves a source identity to another
+        canonical id, recording the superseding decision with its reason.
+        The old lineage is retained as history — never silently overwritten.
+        """
+        if not reason.strip():
+            raise ValueError("reassignment requires a recorded reason")
+        if not (isinstance(confidence, (int, float)) and math.isfinite(confidence)
+                and 0 <= confidence <= 1):
+            raise ValueError("confidence must be a finite number in [0,1]")
+        key = (source_system, source_key)
+        old = self.by_source.get(key)
+        if old is None:
+            raise IdentityConflict(
+                f"{source_system}/{source_key} has no existing registration; "
+                "use register() for first-time association")
+        if old == new_canonical_id:
+            return old
+        d = IdentityDecision(canonical_id=new_canonical_id, source_system=source_system,
+                             source_key=source_key, strategy=strategy,
+                             confidence=confidence,
+                             rationale=[f"reassign from {old}: {reason}",
+                                        *(rationale or [])])
+        self.by_canonical.setdefault(new_canonical_id, []).append(d)
+        self.by_source[key] = new_canonical_id
+        return new_canonical_id
 
     def lineage(self, canonical_id: str) -> list[IdentityDecision]:
         return list(self.by_canonical.get(canonical_id, []))
