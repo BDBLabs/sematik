@@ -11,11 +11,17 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Iterable
+from typing import Any
 
-from .compiler import (CompilationError, ConversionUngecognizable, LineageError,
-                       TransformationPlan, assertion_from_plan_output)
+from .compiler import (
+    CompilationError,
+    ConversionUngecognizable,
+    LineageError,
+    TransformationPlan,
+    assertion_from_plan_output,
+)
 from .mapping import Mapping
 from .model import Assertion, Provenance
 
@@ -67,11 +73,28 @@ class ConversionRun:
         return _digest(payload)
 
 
+def _enforce_golden_gate(plan: TransformationPlan,
+                         golden: list[dict[str, Any]] | None) -> None:
+    """Fail the run before any conversion if required regression evidence
+    is missing, empty, or failing (spec §61)."""
+    if not golden:
+        raise CompilationError(
+            "require_golden is set but no golden records were supplied; "
+            "refusing to convert without required regression evidence")
+    from .golden import run_golden_records
+    gate = run_golden_records(plan, golden)
+    if not gate["ok"]:
+        raise CompilationError(
+            "golden regression failed before conversion; refusing to run: "
+            + "; ".join(f["name"] for f in gate["failures"]))
+
+
 def run_conversion(rows: Iterable[dict[str, Any]], plan: TransformationPlan,
                    mapping: Mapping, *, source_snapshot: str,
                    domain_pack_version: str, engine_version: str,
                    provenance_of: Callable[[dict[str, Any]], Provenance | None],
-                   golden: list[dict[str, Any]] | None = None) -> ConversionRun:
+                   golden: list[dict[str, Any]] | None = None,
+                   require_golden: bool = False) -> ConversionRun:
     problems = mapping.approval_problems()
     if problems:
         raise CompilationError("cannot run an unapproved mapping: " + "; ".join(problems))
@@ -82,6 +105,11 @@ def run_conversion(rows: Iterable[dict[str, Any]], plan: TransformationPlan,
     if not callable(provenance_of):
         raise CompilationError(
             "provenance_of is required: every converted record must carry source lineage")
+    if require_golden:
+        # The exact immutable plan proves itself against required evidence
+        # BEFORE any source row converts — a failing anchor means the
+        # mapping changed meaning, and converting anyway would launder it.
+        _enforce_golden_gate(plan, golden)
 
     run = ConversionRun(
         source_snapshot=source_snapshot,
@@ -163,5 +191,7 @@ def run_conversion(rows: Iterable[dict[str, Any]], plan: TransformationPlan,
                            "converted + rejected != total_records")
     if golden is not None:
         from .golden import run_golden_records
+        # With require_golden the same evidence already gated this run
+        # above; re-running keeps the recorded result identical to the gate.
         run.golden = run_golden_records(plan, golden)
     return run
