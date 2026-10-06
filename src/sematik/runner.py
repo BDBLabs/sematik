@@ -30,6 +30,7 @@ class RunException:
     record_id: str
     reason: str
     phase: str
+    provenance_ref: str = ""
 
 
 @dataclass
@@ -91,9 +92,21 @@ def run_conversion(rows: Iterable[dict[str, Any]], plan: TransformationPlan,
     )
     source_hash = hashlib.sha256()
 
-    def reject(record_id: str, reason: str, phase: str) -> None:
+    def reject(
+        record_id: str,
+        reason: str,
+        phase: str,
+        provenance: Provenance | None = None,
+    ) -> None:
         run.rejected += 1
-        run.exceptions.append(RunException(record_id=record_id, reason=reason, phase=phase))
+        run.exceptions.append(
+            RunException(
+                record_id=record_id,
+                reason=reason,
+                phase=phase,
+                provenance_ref="" if provenance is None else provenance.ref(),
+            )
+        )
 
     for row in rows:
         run.total_records += 1
@@ -103,28 +116,42 @@ def run_conversion(rows: Iterable[dict[str, Any]], plan: TransformationPlan,
             continue
         rid = str(row.get("_id", "?"))
         try:
-            out = plan.execute(row)
-        except ConversionUngecognizable as e:
-            reject(rid, str(e), "execution")
-            continue
-        except CompilationError:
-            raise  # a defective plan is not a bad record — fail the run loudly
-        except Exception as e:  # unexpected data shape: reject the record, keep the batch
-            reject(rid, f"unexpected {type(e).__name__}: {str(e)[:200]}", "execution")
-            continue
-        try:
             provenance = provenance_of(row)
         except Exception as e:
             reject(rid, f"provenance lookup failed: {type(e).__name__}", "lineage")
             continue
-        if not isinstance(provenance, Provenance) or not provenance.source_system:
-            reject(rid, "no source provenance for record; conversion without lineage is not accepted",
-                   "lineage")
+        if (
+            not isinstance(provenance, Provenance)
+            or not provenance.source_system
+            or not provenance.source_record
+        ):
+            reject(
+                rid,
+                "record-level source provenance is required; "
+                "source_system and source_record must both be present",
+                "lineage",
+                provenance if isinstance(provenance, Provenance) else None,
+            )
+            continue
+        try:
+            out = plan.execute(row)
+        except ConversionUngecognizable as e:
+            reject(rid, str(e), "execution", provenance)
+            continue
+        except CompilationError:
+            raise  # a defective plan is not a bad record — fail the run loudly
+        except Exception as e:  # unexpected data shape: reject the record, keep the batch
+            reject(
+                rid,
+                f"unexpected {type(e).__name__}: {str(e)[:200]}",
+                "execution",
+                provenance,
+            )
             continue
         try:
             assertion = assertion_from_plan_output(plan, out, provenance, mapping)
         except LineageError as e:
-            reject(rid, str(e), "lineage")
+            reject(rid, str(e), "lineage", provenance)
             continue
         run.outputs.append(out)
         run.assertions.append(assertion)
