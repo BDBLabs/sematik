@@ -161,3 +161,15 @@ def test_provider_allows_cleartext_loopback_credentials():
         api_key="local-dev",
     )
     assert provider.endpoint.startswith("http://127.0.0.1")
+
+
+def test_provider_rejects_credential_endpoint_without_host():
+    with pytest.raises(
+        EmbeddingConfigurationError,
+        match="HTTPS or a cleartext loopback",
+    ):
+        NvidiaEmbeddingProvider(
+            endpoint="https:///v1/embeddings",
+            model="nvidia/nemotron-3-embed-1b",
+            api_key="secret",
+        )

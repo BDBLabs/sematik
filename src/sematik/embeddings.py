@@ -64,9 +64,11 @@ class SemanticSimilarity:
 
 def _credential_transport_allowed(endpoint: str) -> bool:
     parsed = urlparse(endpoint)
+    if not parsed.hostname:
+        return False
     if parsed.scheme == "https":
         return True
-    if parsed.scheme != "http" or not parsed.hostname:
+    if parsed.scheme != "http":
         return False
     if parsed.hostname == "localhost":
         return True
