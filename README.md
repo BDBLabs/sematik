@@ -19,3 +19,27 @@ See [`docs/SPEC.md`](docs/SPEC.md) for the full requirements specification.
 ## Status
 
 Pre-alpha — repository scaffolded 2026-10-05. Nothing implemented yet.
+
+## Development cycle (for a new model)
+
+Sematik is GitHub-governed. `main` is gated:
+
+1. **Read** `AGENTS.md`, `AI_ATTRIBUTION.md`, `docs/SPEC.md`, `docs/ARCHITECTURE.md`, and the latest ADR.
+2. **Branch** from a green `main` with a name describing the unit of work
+   (`ops/...`, `policy/...`, `fix/...`, `demo/...`).
+3. **Implement** in the appropriate source directory; tests under `tests/`.
+4. `python3 -m pytest tests -q` must be green on the branch before PR.
+5. **Commit** with exact trailers (see AI_ATTRIBUTION.md §1).
+6. **Push**, then **open a PR** whose body covers: what changed, why,
+   requirements addressed, architectural implications, tests run, known
+   limitations, and the AI Participation block.
+7. **Get an independent review.** Per the owner exception, a subagent
+   running a different model satisfies this; the review must cite the head
+   SHA. Record the review (reviewer, Reviewed-Commit-SHA, verdict) in the PR
+   as a comment and update the AI Participation fields.
+8. **Do not merge without that recorded review.** Material pushes after
+   approval require re-review of the new head.
+9. Scratch reasoning and transient notes stay out of the repo.
+
+The unit of work is complete when: branch deleted, PR merged by the owner,
+and follow-up items captured either on GitHub issues or as PR-comment notes.
