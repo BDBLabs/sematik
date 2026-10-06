@@ -226,13 +226,14 @@ def compile_mapping_to_sql(mapping: Mapping, steps: list[PlanStep], *,
     a *read-only* compilation of the mapping — traceability is preserved by
     embedding the mapping digest.
 
-    KNOWN LIMITS (tracked in #30): not equivalent to Python failure semantics
-    and does not safely quote identifiers/literals."""
+    Fail-closed (spec §68, tracked in #30): ops whose Python failure
+    semantics cannot be preserved in a single SELECT are refused rather
+    than silently weakened. Only value-preserving lowering is emitted;
+    identifier/literal quoting remains unsafe (also tracked in #30)."""
     problems = mapping.approval_problems()
     if problems:
         raise CompilationError("mapping must be approved before compilation: " + "; ".join(problems))
     select_exprs: list[str] = []
-    identity_cols: list[str] = []
     for step in steps:
         if step.op == "copy":
             select_exprs.append(f"{step.args['from']} AS {step.args['to']}")
@@ -240,23 +241,26 @@ def compile_mapping_to_sql(mapping: Mapping, steps: list[PlanStep], *,
             parts = " + ".join(step.args["parts"])
             select_exprs.append(f"({parts}) AS {step.args['to']}")
         elif step.op == "code_translate":
-            whens = " ".join(
-                f"WHEN {k!r} THEN {v!r}" for k, v in step.args["table"].items())
-            select_exprs.append(
-                f"CASE {step.args['from']} {whens} ELSE NULL END AS {step.args['to']}")
+            raise CompilationError(
+                f"no SQL lowering for code_translate on {step.args['from']!r}: "
+                "Python rejects unmapped codes as explicit exceptions (spec §68) "
+                "but CASE ... ELSE NULL would silently convert them to NULL; "
+                "refusing rather than weakening failure semantics (#30)")
         elif step.op == "assert_not_null":
-            identity_cols.append(step.args["field"])
+            raise CompilationError(
+                f"no SQL lowering for assert_not_null on {step.args['field']!r}: "
+                "Python rejects null rows as explicit per-record exceptions but "
+                "WHERE ... IS NOT NULL would silently drop them, breaking "
+                "converted + rejected == total accounting; "
+                "refusing rather than weakening failure semantics (#30)")
         else:
             raise CompilationError(f"no SQL lowering for op {step.op}")
     if not select_exprs:
         raise CompilationError("no compilable steps")
-    where = ""
-    if identity_cols:
-        where = "\nWHERE " + " AND ".join(f"{c} IS NOT NULL" for c in identity_cols)
     digest = mapping.digest()
     return (f"-- compiled from mapping {mapping.id} digest={digest}\n"
             f"-- canonical concept: {mapping.canonical_concept}\n"
-            f"SELECT {', '.join(select_exprs)}\nFROM {source_table}{where};")
+            f"SELECT {', '.join(select_exprs)}\nFROM {source_table};")
 
 
 def assertion_from_plan_output(plan: TransformationPlan, target: dict[str, Any],
