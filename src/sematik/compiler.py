@@ -8,10 +8,10 @@ and reproduce under identical inputs (§22/§69).
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Callable, Iterable
+from typing import Any
 
 from .mapping import Mapping
-from .model import Assertion, Confidence, DerivationStatus, Provenance
+from .model import Assertion, DerivationStatus, Provenance
 
 
 class CompilationError(Exception):
@@ -132,10 +132,19 @@ def compile_mapping_to_sql(mapping: Mapping, steps: list[PlanStep], *,
 
 def assertion_from_plan_output(plan: TransformationPlan, target: dict[str, Any],
                                provenance: Provenance, mapping: Mapping) -> Assertion:
-    """Wrap a converted target value as an assertion with lineage."""
+    """Wrap a converted target value as an assertion with lineage.
+
+    Requires the exact target key from the plan (§68: fail visibly).
+    Falsy values (0, "", False) are preserved, never replaced.
+    """
+    if plan.target_artifact not in target:
+        raise ConversionUngecognizable(
+            provenance.source_record or "?",
+            f"target key {plan.target_artifact!r} missing from plan output",
+        )
     return Assertion(
         concept=mapping.canonical_concept,
-        value=target.get(plan.target_artifact) or next(iter(target.values()), None),
+        value=target[plan.target_artifact],
         derivation=DerivationStatus.DERIVED_VALUE,
         provenance=provenance,
         confidence=mapping.confidence,
