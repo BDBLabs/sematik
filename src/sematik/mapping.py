@@ -45,11 +45,11 @@ class Mapping:
              "levels": [asdict(l) for l in self.levels],
              "rules": sorted(self.rule_refs), "pack": self.domain_pack},
             sort_keys=True)
-        return hashlib.sha256(payload.encode()).hexdigest()[:16]
+        return hashlib.sha256(payload.encode()).hexdigest()
 
     def complete(self) -> bool:
-        seen = {l.level for l in self.levels}
-        return seen == set(range(1, 8))
+        levels = [item.level for item in self.levels]
+        return sorted(levels) == list(range(1, 8))
 
     def approval_problems(self) -> list[str]:
         """Every reason this mapping is not yet fit to compile or run.
@@ -69,9 +69,19 @@ class Mapping:
         conf = self.confidence.overall
         if not (math.isfinite(conf) and conf > 0):
             problems.append("confidence must be finite and positive")
-        missing = sorted(set(range(1, 8)) - {l.level for l in self.levels})
+        levels = [item.level for item in self.levels]
+        expected = set(range(1, 8))
+        missing = sorted(expected - set(levels))
+        invalid = sorted({level for level in levels if level not in expected})
+        duplicates = sorted(
+            level for level in expected if levels.count(level) > 1
+        )
         if missing:
             problems.append(f"semantic levels missing: {missing}")
+        if invalid:
+            problems.append(f"semantic levels out of range: {invalid}")
+        if duplicates:
+            problems.append(f"semantic levels duplicated: {duplicates}")
         return problems
 
     def approved(self) -> bool:
