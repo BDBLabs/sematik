@@ -273,3 +273,27 @@ def test_assertion_history_binds_mapping_and_exact_plan():
     history = run.assertions[0].transformation_history
     assert m.digest() in history
     assert p.digest() in history
+
+
+@pytest.mark.parametrize(
+    "level,kind,statement,error",
+    [
+        (1, "physical-again", "duplicate level", "duplicated"),
+        (8, "extra", "out of range", "out of range"),
+    ],
+)
+def test_duplicate_or_out_of_range_semantic_levels_cannot_compile(
+    level, kind, statement, error
+):
+    m = approved_mapping()
+    m.add_level(level, kind, statement)
+    assert not m.complete()
+    with pytest.raises(CompilationError, match=error):
+        compile_mapping(m, [PlanStep("copy", {"from": "x", "to": "t"})])
+
+
+def test_mapping_digest_is_full_sha256():
+    m = approved_mapping()
+    digest = m.digest()
+    assert len(digest) == 64
+    int(digest, 16)
