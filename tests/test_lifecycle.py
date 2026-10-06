@@ -10,7 +10,7 @@ import pytest
 from sematik.compiler import PlanStep, compile_mapping
 from sematik.discovery import hypotheses_for_column, profile_column
 from sematik.mapping import Mapping
-from sematik.model import Confidence
+from sematik.model import Confidence, Provenance
 from sematik.reconcile import population_reconcile
 from sematik.runner import run_conversion
 
@@ -65,21 +65,18 @@ def test_lifecycle_end_to_end():
     run = run_conversion(rows, plan, mapping,
                          source_snapshot="fixture-legacy-2026-10-05",
                          domain_pack_version="cpasf@0.1.0", engine_version="0.0.1",
-                         provenance_of=lambda r: None)
+                         provenance_of=lambda r: Provenance(source_system="legacy-cama", source_table="PARCEL", source_record=str(r.get("_id", r.get("APN")))))
 
     # 3 known transfer kinds convert; UNK9 row is rejected, never coerced (§68).
     assert run.converted == 3 and run.rejected == 1
     assert run.exceptions[0].reason.find("UNK9") > 0
 
-    # backward lineage: assertions built from converted rows carry the plan's
-    # mapping digest in transformation_history (§21).
-    from sematik.compiler import assertion_from_plan_output
-    from sematik.model import Provenance
-    a = assertion_from_plan_output(plan, run.outputs[0],
-                                   Provenance(source_system="legacy-cama",
-                                              source_table="PARCEL",
-                                              source_record="r1"), mapping)
+    # backward lineage: the run itself emits one source-bound assertion per
+    # converted record, carrying the plan's mapping digest (§21, #26).
+    assert len(run.assertions) == run.converted == 3
+    a = run.assertions[0]
     assert plan.mapping_digest in a.transformation_history
+    assert a.provenance.source_system == "legacy-cama" and a.provenance.source_record
 
     # reconciliation: every APN accounted except the one rejected row.
     recon = population_reconcile(rows, run.outputs, source_key="APN", target_key="apn")
@@ -90,5 +87,5 @@ def test_lifecycle_end_to_end():
     run2 = run_conversion(rows, compile_mapping(mapping, steps), mapping,
                           source_snapshot="fixture-legacy-2026-10-05",
                           domain_pack_version="cpasf@0.1.0", engine_version="0.0.1",
-                          provenance_of=lambda r: None)
+                          provenance_of=lambda r: Provenance(source_system="legacy-cama", source_table="PARCEL", source_record=str(r.get("_id", r.get("APN")))))
     assert run.manifest_hash() == run2.manifest_hash()
