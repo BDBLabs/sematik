@@ -278,6 +278,6 @@ def assertion_from_plan_output(plan: TransformationPlan, target: dict[str, Any],
         derivation=DerivationStatus.DERIVED_VALUE,
         provenance=provenance,
         confidence=mapping.confidence,
-        transformation_history=(plan.mapping_digest,),
+        transformation_history=(plan.mapping_digest, plan.digest()),
         validation_state="pending",
     )
