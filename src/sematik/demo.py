@@ -8,7 +8,7 @@ from __future__ import annotations
 import json
 import pathlib
 
-from .compiler import PlanStep, assertion_from_plan_output, compile_mapping
+from .compiler import PlanStep, compile_mapping
 from .discovery import hypotheses_for_column, profile_column
 from .mapping import Mapping
 from .model import (Assertion, Confidence, DerivationStatus, Provenance)
@@ -58,7 +58,9 @@ def main() -> None:
     run = run_conversion(rows, plan, mapping,
                          source_snapshot="demo-fixture-2026-10-05",
                          domain_pack_version="cpasf@0.1.0", engine_version="0.0.1",
-                         provenance_of=lambda r: None)
+                         provenance_of=lambda r: Provenance(
+                             source_system="LEGACYDB", source_table="PARCEL",
+                             source_record=str(r.get("_id", r.get("APN", "?")))))
     print(f"[4] Conversion: {run.converted} converted, {run.rejected} rejected (fail-closed on XFER=UNK9)")
     for e in run.exceptions:
         print(f"    exception: {e.record_id} → {e.reason}")
@@ -66,11 +68,9 @@ def main() -> None:
     recon = population_reconcile(rows, run.outputs, source_key="APN", target_key="apn")
     print(f"[5] Population reconciliation: missing_in_target={recon['missing_in_target']}, balanced={recon['balanced']}")
 
-    print(f"[4.5] Backward lineage of first converted row:")
-    a = assertion_from_plan_output(plan, run.outputs[0],
-                                   Provenance(source_system="LEGACYDB", source_table="PARCEL", source_record="r1"),
-                                   mapping)
-    print(f"      assertion concept={a.concept!r} value={a.value} history={a.transformation_history}")
+    print(f"[4.5] Backward lineage of first converted row (emitted by the run itself):")
+    a = run.assertions[0]
+    print(f"      assertion concept={a.concept!r} value={a.value} source={a.provenance.ref()} history={a.transformation_history}")
 
     asserts = [
         Assertion(concept="Assessment", value=o["total_assessed"],
