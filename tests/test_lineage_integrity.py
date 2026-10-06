@@ -133,6 +133,7 @@ def test_run_emits_source_bound_assertions_for_every_converted_record():
     assert [a.provenance.source_record for a in run.assertions] == ["a", "b"]
     assert [a.value for a in run.assertions] == [1, 2]
     assert all(p.mapping_digest in a.transformation_history for a in run.assertions)
+    assert all(p.digest() in a.transformation_history for a in run.assertions)
 
 
 @pytest.mark.parametrize("bad_provenance", [lambda r: None, lambda r: Provenance("")])
@@ -231,3 +232,44 @@ def test_defective_plan_fails_the_run_loudly():
                              mapping_version=m.version)
     with pytest.raises(CompilationError, match="unknown op"):
         _run([{"_id": 1}], bad, m)
+
+
+def test_generic_system_provenance_without_source_record_is_rejected():
+    m, p = _copy_plan()
+    run = _run(
+        [{"_id": "row-1", "x": 1}],
+        p,
+        m,
+        provenance_of=lambda row: Provenance(
+            source_system="legacy",
+            source_table="T",
+        ),
+    )
+    assert run.converted == 0
+    assert run.rejected == 1
+    assert run.exceptions[0].phase == "lineage"
+    assert "source_record" in run.exceptions[0].reason
+
+
+def test_execution_rejection_retains_record_provenance():
+    m = approved_mapping(target_artifact="o")
+    p = compile_mapping(
+        m,
+        [PlanStep(
+            "code_translate",
+            {"from": "c", "to": "o", "table": {"A": 1}},
+        )],
+    )
+    run = _run([{"_id": "bad-2", "c": "UNKNOWN"}], p, m)
+    assert run.converted == 0
+    assert run.rejected == 1
+    assert run.exceptions[0].phase == "execution"
+    assert run.exceptions[0].provenance_ref == "legacy/T/bad-2"
+
+
+def test_assertion_history_binds_mapping_and_exact_plan():
+    m, p = _copy_plan()
+    run = _run([{"_id": "row-1", "x": 7}], p, m)
+    history = run.assertions[0].transformation_history
+    assert m.digest() in history
+    assert p.digest() in history
