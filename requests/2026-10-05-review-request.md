@@ -88,3 +88,24 @@ AI-Model: GPT-6 (exact deployed version unavailable)
 AI-Provider: OpenAI
 AI-Tool: Codex
 AI-Role: Reviewed
+
+## Follow-up review — bed533a, 2026-10-05
+
+Decision: REJECT for implementation acceptance.
+Reviewed-Commit-SHA: bed533a6739afbcf67aa340fa631f3f2624bfbba
+Compared with 84668ad0e2810e0cf2c9e1e5b5911d85abbc6556; inspected all changed source/tests and policy delta. 33 tests passed. Targeted probes confirmed new failure paths:
+
+- HIGH — reconcile_records reports balanced=True for a matched record with the required target amount absent, and separately for a NaN target amount. Missing/unsupported source values also skip comparison. Require explicit validation and finite numeric inputs; count checks actually performed and surface unmatched/missing/duplicate records. The two existing tests exercise ordinary numeric values only.
+- HIGH — compile_mapping_to_sql is not equivalent to Python failure semantics: unknown codes become NULL through ELSE NULL; assert_not_null becomes a WHERE filter that silently removes rows. Executed emitted SELECT on an in-memory SQLite fixture: unknown code returned NULL and the null-ID record disappeared, while Python rejected both explicitly. This demonstrates the shared SQL constructs' behavior, not full PostgreSQL validation. Emit traceable rejection output or refuse unsupported lowering; execute equivalence tests rather than checking SQL substrings.
+- HIGH — golden regression checks run after conversion and do not gate its outputs. Reproduced a failing expected value with converted=1 and outputs retained. Validate the exact immutable plan before conversion; reject missing/empty/failed required regression evidence. The new test only checks that the manifest changes.
+
+EvidenceGraph now supports JSON serialization/deserialization, an improvement over the earlier in-memory-only API. Durable storage integrated with runtime lineage remains unverified; run_conversion still ignores provenance_of and produces no assertions. Approval binding, mutable plans/incomplete manifests, zero-value corruption, identity conflicts/NaN, and incomplete semantic diff remain unresolved. Feature additions do not discharge these findings.
+
+Next action: submit a focused fix PR establishing the fail-closed approval/test/plan/execution/lineage chain, with regression coverage for these concrete counterexamples. No extra routine Bill approval is required.
+
+PR #23 separately received APPROVE WITH CONDITIONS for its documentation-only diff at 0e383251c06b8a35390f149fc906db942096055d, not implementation acceptance: https://github.com/BDBLabs/sematik/pull/23#pullrequestreview-5411719954. Different underlying-model verification and GitHub self-approval limitations remain. Protection/rules API checks returned HTTP 403 with an upgrade-or-public-repository message; main's enforced protection could not be verified. This monitor has not merged anything.
+
+AI-Model: GPT-6 (exact deployed version unavailable)
+AI-Provider: OpenAI
+AI-Tool: Codex
+AI-Role: Reviewed
