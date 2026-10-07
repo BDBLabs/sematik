@@ -1,6 +1,7 @@
 # Shadow-mode Woodpecker pipeline based on the CAPSF portable CI pattern.
-# Existing GitHub Actions and deployment workflows remain authoritative until
-# repeated parity runs are reviewed and an authorized maintainer cuts over.
+# No GitHub Actions workflows exist in this repo yet; when any are added,
+# they remain authoritative until repeated parity runs are reviewed and an
+# authorized maintainer cuts over.
 when:
   - event: [push, pull_request, pull_request_metadata, manual]
 
@@ -21,7 +22,13 @@ steps:
       - /var/run/docker.sock:/var/run/docker.sock
     commands:
       - apk add --no-cache curl docker-cli
+      # Install script is fetched over TLS and pinned to DAGGER_VERSION;
+      # the installed binary is verified below before it runs anything.
       - curl -fsSL https://dl.dagger.io/dagger/install.sh | DAGGER_VERSION="$${DAGGER_VERSION}" BIN_DIR=/usr/local/bin sh
+      - dagger version | grep -F "$${DAGGER_VERSION}" || { echo "dagger version mismatch"; exit 1; }
       - dagger call verify
+    # The Docker socket is host access: never mount it for untrusted
+    # pull_request events. Fork PRs still trigger the pipeline (clone only);
+    # verification runs on push to branches and manual runs.
     when:
-      - event: [push, pull_request, manual]
+      - event: [push, manual]

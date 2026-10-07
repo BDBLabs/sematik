@@ -1,9 +1,10 @@
 """Provider-independent repository verification implemented with Dagger.
 
-Woodpecker decides *when* verification runs. This module defines a portable,
-repository-owned baseline for *what* verification means during shadow mode.
-Existing GitHub Actions and deployment workflows remain authoritative until
-parity is demonstrated and a maintainer explicitly cuts over.
+No GitHub Actions workflows exist in this repo yet; when any are added they
+remain authoritative until parity is demonstrated and a maintainer explicitly
+cuts over. Woodpecker decides *when* verification runs. This module defines a
+portable, repository-owned baseline for *what* verification means during
+shadow mode.
 """
 
 from __future__ import annotations
@@ -113,14 +114,23 @@ elif [ -f requirements.txt ]; then
   python -m pip install -r requirements.txt
 fi
 
+# Fail closed: the suite must actually execute. Earlier revisions silently
+# skipped pytest when it was absent (pip accepts unknown extras with only a
+# warning), reporting a green pipeline that verified nothing.
+if [ -d tests ]; then
+  command -v pytest >/dev/null 2>&1 || { echo "pytest is required but not installed"; exit 1; }
+fi
+
 python -m pip install "pip-audit==2.7.3"
 python -m pip_audit --strict --local
 
+# Advisory until the repo adopts a ruff baseline: reported, never gating.
+# (A bare `ruff check .` currently fails on pre-existing findings.)
 if command -v ruff >/dev/null 2>&1; then
-  ruff check .
+  ruff check . || echo "ruff: advisory findings reported above (non-gating)"
 fi
 
-if command -v pytest >/dev/null 2>&1 && [ -d tests ]; then
+if [ -d tests ]; then
   pytest -q
 fi
 """
