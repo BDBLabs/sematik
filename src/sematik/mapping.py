@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import hashlib
+import math
 import uuid
 from dataclasses import dataclass, field, asdict
 from typing import Any
@@ -44,11 +45,44 @@ class Mapping:
              "levels": [asdict(l) for l in self.levels],
              "rules": sorted(self.rule_refs), "pack": self.domain_pack},
             sort_keys=True)
-        return hashlib.sha256(payload.encode()).hexdigest()[:16]
+        return hashlib.sha256(payload.encode()).hexdigest()
 
     def complete(self) -> bool:
-        seen = {l.level for l in self.levels}
-        return seen == set(range(1, 8))
+        levels = [item.level for item in self.levels]
+        return sorted(levels) == list(range(1, 8))
+
+    def approval_problems(self) -> list[str]:
+        """Every reason this mapping is not yet fit to compile or run.
+
+        Approval is fail-closed: an actor string alone is not authority. It
+        needs a named approver, a reference to the approval record, a mapping
+        version, positive finite confidence and all seven semantic levels
+        (spec §13). Evidence binding, resolved blocking questions and tested
+        plans are tracked separately in #24."""
+        problems: list[str] = []
+        if not self.approved_by.strip():
+            problems.append("no approver recorded")
+        if not self.approval_ref.strip():
+            problems.append("no approval reference")
+        if not self.version.strip():
+            problems.append("no mapping version")
+        conf = self.confidence.overall
+        if not (math.isfinite(conf) and conf > 0):
+            problems.append("confidence must be finite and positive")
+        levels = [item.level for item in self.levels]
+        expected = set(range(1, 8))
+        missing = sorted(expected - set(levels))
+        invalid = sorted({level for level in levels if level not in expected})
+        duplicates = sorted(
+            level for level in expected if levels.count(level) > 1
+        )
+        if missing:
+            problems.append(f"semantic levels missing: {missing}")
+        if invalid:
+            problems.append(f"semantic levels out of range: {invalid}")
+        if duplicates:
+            problems.append(f"semantic levels duplicated: {duplicates}")
+        return problems
 
     def approved(self) -> bool:
-        return bool(self.approved_by) and self.confidence.overall > 0
+        return not self.approval_problems()
