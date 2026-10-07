@@ -24,6 +24,7 @@ class DomainPack:
     code_sets: dict[str, CodeSet] = field(default_factory=dict)
     invariants: list[tuple[str, object]] = field(default_factory=list)  # (desc, callable)
     known_patterns: list[str] = field(default_factory=list)
+    corpus: list = field(default_factory=list)  # HandbookPassage items
     valid_from: str = ""
     golden_records: list[dict] = field(default_factory=list)
 
