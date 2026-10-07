@@ -10,12 +10,12 @@ their trust boundary.
 from __future__ import annotations
 
 import hashlib
-import ipaddress
 from dataclasses import dataclass, field
 from enum import Enum
 from types import MappingProxyType
 from typing import Mapping
-from urllib.parse import urlparse
+
+from .embeddings import credential_transport_allowed
 
 
 class DataClassification(str, Enum):
@@ -130,18 +130,7 @@ def endpoint_allows_credentials(endpoint: str) -> bool:
     """Credentials may use HTTPS or cleartext loopback only.
 
     This deliberately rejects API-key transmission over ordinary HTTP. Loopback
-    is allowed for local development/self-hosted NIMs.
+    is allowed for local development/self-hosted NIMs. Single implementation
+    shared with the embeddings provider (no duplicated transport rule).
     """
-
-    parsed = urlparse(endpoint)
-    if parsed.scheme == "https":
-        return True
-    if parsed.scheme != "http" or not parsed.hostname:
-        return False
-    host = parsed.hostname
-    if host == "localhost":
-        return True
-    try:
-        return ipaddress.ip_address(host).is_loopback
-    except ValueError:
-        return False
+    return credential_transport_allowed(endpoint)

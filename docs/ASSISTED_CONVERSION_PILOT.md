@@ -1,11 +1,11 @@
-# ARCC-Assisted Data Conversion Pilot Readiness
+# Agency-Assisted Data Conversion Pilot Readiness
 
 ## Position
 
-Sematik is **not production-ready today to autonomously convert ARCC data**.
+Sematik is **not production-ready today to autonomously convert agency data**.
 
 It can, however, be developed into a credible assisted-discovery and conversion
-pilot tool for ARCC much sooner than it can become a fully autonomous migration
+pilot tool for an agency much sooner than it can become a fully autonomous migration
 engine.
 
 The near-term value proposition is to reduce the labor and uncertainty in:
@@ -23,7 +23,7 @@ The near-term value proposition is to reduce the labor and uncertainty in:
 Human SMEs remain responsible for semantic adjudication and conversion
 authorization.
 
-## Why ARCC is a strong proving environment
+## Why a pilot agency is a strong proving environment
 
 A mature assessor environment contains exactly the conditions Sematik is meant
 to handle:
@@ -38,7 +38,7 @@ to handle:
 - high value in proving what information meant before it is transformed.
 
 The CPASF Domain Pack provides a canonical vocabulary and domain constraints
-without hard-coding ARCC meaning into the generic engine.
+without hard-coding agency-specific meaning into the generic engine.
 
 ## Proposed pilot
 
@@ -76,7 +76,7 @@ Exit criterion: source-artifact catalog with provenance.
 
 ### Phase 2 — Known-answer benchmark
 
-Select fields whose meaning is already well understood by ARCC SMEs.
+Select fields whose meaning is already well understood by agency SMEs.
 
 Use them to measure:
 
@@ -132,7 +132,7 @@ without credential/raw-keylogging capture.
 
 ### Phase 5 — Human semantic adjudication
 
-ARCC SMEs review competing interpretations and evidence.
+Agency SMEs review competing interpretations and evidence.
 
 Approved mappings must remain bound to:
 
@@ -167,7 +167,7 @@ Perform:
 
 Exit criterion: documented discrepancies and a replayable conversion manifest.
 
-## What an ARCC pilot should prove
+## What a pilot should prove
 
 The pilot is successful if Sematik can answer for selected source artifacts:
 
@@ -188,14 +188,14 @@ Until production gates are satisfied, Sematik should not claim:
 
 - autonomous semantic authority;
 - production-safe unattended conversion;
-- comprehensive ARCC system understanding;
+- comprehensive agency-system understanding;
 - legal correctness derived from historical software behavior;
 - that embedding similarity is mapping confidence;
 - that a successful aggregate balance proves semantic correctness.
 
 ## Pilot recommendation
 
-The best first ARCC proving slice is a workflow with:
+The best first agency proving slice is a workflow with:
 
 - known SMEs;
 - enough legacy complexity to test semantic discovery;
@@ -207,7 +207,7 @@ A transfer/change-of-ownership or a bounded valuation-component workflow may be
 strong candidates because both include field semantics, temporal behavior,
 reports, business rules and staff process knowledge.
 
-Final pilot scope should be selected with ARCC based on data availability and
+Final pilot scope should be selected with agency based on data availability and
 operational risk.
 
 AI-Model: GPT-5.6 Sol

@@ -2,7 +2,6 @@ import ast
 from pathlib import Path
 
 import pytest
-
 from sematik.egress import (
     DataClassification,
     EgressDestination,
@@ -10,7 +9,6 @@ from sematik.egress import (
     EgressRequest,
     endpoint_allows_credentials,
 )
-from sematik.retrieval_eval import RetrievalCase, evaluate_retrieval
 from sematik.investigation import (
     CompetingInterpretation,
     EvidenceAuthority,
@@ -22,10 +20,10 @@ from sematik.investigation import (
     InvestigationPacket,
     ProcessObservation,
     ReplayRecord,
-    Replayability,
     SemanticPrecedent,
     SourceSpan,
 )
+from sematik.retrieval_eval import RetrievalCase, evaluate_retrieval
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "src" / "sematik"
@@ -306,3 +304,27 @@ def test_governance_metadata_is_immutable():
     )
     with pytest.raises(TypeError):
         item.scope["system"] = "rewritten"
+
+
+def test_evidence_digest_is_deterministic_for_sets():
+    from sematik.investigation import _digest
+    a = _digest({"tags": {"b", "a", "c"}, "n": 1})
+    b = _digest({"n": 1, "tags": {"c", "b", "a"}})
+    assert a == b
+
+
+def test_evidence_digest_stable_across_hash_seeds():
+    import subprocess
+    import sys
+    code = ("from sematik.investigation import _digest;"
+            "print(_digest({'tags': {'a','b','c'}, 'n': 1}))")
+    outs = set()
+    for seed in ("0", "1", "42"):
+        r = subprocess.run([sys.executable, "-c", code], capture_output=True,
+                           text=True,
+                           env={"PYTHONHASHSEED": seed, "PYTHONPATH": "src",
+                                "PATH": "/usr/bin:/bin"},
+                           cwd=".")
+        assert r.returncode == 0, r.stderr
+        outs.add(r.stdout.strip())
+    assert len(outs) == 1

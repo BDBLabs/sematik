@@ -201,14 +201,14 @@ The evidence model intentionally contains more structure than a conventional
 RAG response. That structure is necessary for traceability, contradiction,
 replay and later audit.
 
-## ARCC pilot posture
+## Pilot posture
 
-This ADR does not claim Sematik is production-ready for ARCC data conversion.
+This ADR does not claim Sematik is production-ready for agency data conversion.
 
-A credible ARCC-assisted pilot can begin when Sematik can demonstrate a vertical
+A credible agency-assisted pilot can begin when Sematik can demonstrate a vertical
 slice over authorized sample material:
 
-1. ingest an ARCC-like source schema and mixed institutional artifacts;
+1. ingest an agency-like source schema and mixed institutional artifacts;
 2. generate competing field/concept interpretations;
 3. retrieve documentary, structural and similarity evidence;
 4. run at least one deterministic historical/reconciliation probe;

@@ -62,7 +62,7 @@ class SemanticSimilarity:
 
 
 
-def _credential_transport_allowed(endpoint: str) -> bool:
+def credential_transport_allowed(endpoint: str) -> bool:
     parsed = urlparse(endpoint)
     if not parsed.hostname:
         return False
@@ -109,7 +109,7 @@ class NvidiaEmbeddingProvider:
             raise EmbeddingConfigurationError(
                 "NVIDIA_API_KEY is required for the hosted NVIDIA embeddings endpoint"
             )
-        if self.api_key and not _credential_transport_allowed(self.endpoint):
+        if self.api_key and not credential_transport_allowed(self.endpoint):
             raise EmbeddingConfigurationError(
                 "API credentials require HTTPS or a cleartext loopback endpoint"
             )

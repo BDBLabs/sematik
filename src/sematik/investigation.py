@@ -57,9 +57,26 @@ class ProbeDisposition(str, Enum):
     FAILED = "failed"
 
 
+def _canon(value: Any) -> Any:
+    """Recursively canonicalize for digesting.
+
+    Sets have hash-randomized iteration order, so str()/json of a set is
+    nondeterministic across processes — fatal to replay (spec §22). Sort
+    set members by (type name, repr) so mixed-type sets stay orderable.
+    """
+    if isinstance(value, (set, frozenset)):
+        return sorted((_canon(v) for v in value),
+                      key=lambda v: (type(v).__name__, repr(v)))
+    if isinstance(value, dict):
+        return {k: _canon(value[k]) for k in sorted(value, key=repr)}
+    if isinstance(value, (list, tuple)):
+        return [_canon(v) for v in value]
+    return value
+
+
 def _digest(value: Any) -> str:
     encoded = json.dumps(
-        value, sort_keys=True, default=str, separators=(",", ":")
+        _canon(value), sort_keys=True, default=str, separators=(",", ":")
     ).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
 
