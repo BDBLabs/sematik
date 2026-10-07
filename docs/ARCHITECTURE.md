@@ -39,6 +39,53 @@ Discoveries propose, Assurance findings become questions in Control.
 - `Run` — a conversion execution: versions, snapshot hashes, artifact hashes,
   counts, reconciliation, exceptions, approvals → `ConversionManifest`.
 
+## Evidence Retrieval and Semantic Investigation
+
+The Discovery plane contains an Evidence Retrieval and Semantic Investigation
+layer (ERSI). It can combine structural profiling, lexical/dense retrieval,
+source-code/document search, historical probes, semantic precedents and
+authorized process observations.
+
+ERSI emits typed evidence and competing interpretations to the Semantic Control
+plane. It does not approve mappings.
+
+Evidence retains stance, method, authority character, source/provenance,
+replayability, scope and data classification. Sematik does not collapse
+executed, documentary, structural and similarity evidence into one universal
+score.
+
+Hypotheses may carry falsification predictions. Probe families should be
+symmetric across competing interpretations so the system exposes confirmation
+bias rather than hiding it.
+
+A future Process Observer Agent may capture authorized business-process events
+from a legacy workstation. Observed application behavior and staff explanation
+are stored as separate evidence types.
+
+External hosted retrieval/embedding is a governed data-egress route. The
+default government-oriented policy permits only PUBLIC content to external
+hosted services; protected material stays local/self-hosted unless a reviewed
+deployment policy explicitly permits otherwise.
+
+Compiler, runner, golden-record execution and reconciliation are forbidden from
+importing probabilistic Discovery services. Tests enforce this boundary.
+
+See ADR-0006 and docs/SEMANTIC_INVESTIGATION.md.
+## Semantic retrieval and embeddings
+
+Embedding similarity is a **Discovery-plane signal only**. Sematik may use a
+configured embedding provider to rank Domain Pack concepts against a source
+description, but the resulting cosine score is not a calibrated confidence
+value and cannot approve a mapping.
+
+The first provider is NVIDIA NIM / NVIDIA Build via the OpenAI-compatible
+`/v1/embeddings` contract. Provider/model/endpoint are configuration, not domain
+logic. Query and passage modes remain distinct. The default policy is
+fail-visible (`truncate=NONE`) rather than silently discarding source meaning.
+
+Production Execution consumes only approved, compiled mappings; it does not call
+the embedding provider for each converted row. See ADR-0005.
+
 ## Evidence graph
 
 Nodes: source artifacts, hypotheses, assertions, concepts, mappings, rules,
