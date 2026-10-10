@@ -33,8 +33,12 @@ def main() -> None:
         canonical_concept="Assessment.Valuation[type=LAND+IMP].total",
         target_artifact="total_assessed",
         confidence=Confidence(0.9, ("domain-rule", "reconciliation")),
-        rule_refs=["RTC-110"], domain_pack="cpasf@0.1.0",
-        approved_by="demo-operator", approval_ref="demo", version="0.1.0",
+        rule_refs=["RTC-110"],
+        domain_pack="cpasf@0.1.0",
+        approved_by="demo-operator", approval_ref="demo-approval", version="0.1.0",
+        evidence_refs=["handbook:parcel-assessment-rules",
+                       "court-record:enrollment-2026"],
+        golden_plan_digest="golden:fixture-golden-plan",
     )
     for lv, kind, stmt in [
         (1, "physical", "LNDVAL+AV_IMP → staging.total_assessed"),

@@ -10,7 +10,9 @@ _LEVELS = [(1, "physical"), (2, "semantic"), (3, "canonical"), (4, "context"),
 def approved_mapping(**overrides) -> Mapping:
     fields = dict(source_artifact="s", canonical_concept="c", target_artifact="t",
                   approved_by="reviewer", approval_ref="REVIEW-1", version="1.0.0",
-                  confidence=Confidence(0.9))
+                  confidence=Confidence(0.9),
+                  evidence_refs=["evidence:fixture:legacy-2026-10-10"],
+                  golden_plan_digest="golden:d30398c72e")
     fields.update(overrides)
     m = Mapping(**fields)
     for level, kind in _LEVELS:

@@ -44,6 +44,8 @@ def test_lifecycle_end_to_end():
         approved_by="test",
         approval_ref="review-2026-10-05",
         version="0.1.0",
+        evidence_refs=["fixture:legacy-2026-10-05"],
+        golden_plan_digest="fixture-golden-plan",
     )
     mapping.add_level(1, "physical", "LNDVAL+AV_IMP → staging.total_assessed")
     mapping.add_level(2, "semantic", "LNDVAL/AV_IMP → assessed value components")
