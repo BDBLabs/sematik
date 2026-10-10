@@ -55,14 +55,44 @@ class TemporalContext:
 
 @dataclass(frozen=True)
 class Confidence:
-    """Decomposable confidence — never a bare number (spec §14)."""
+    """Decomposable confidence — never a bare number (spec §14).
+
+    ``calibrated`` marks whether ``overall`` is backed by an independent
+    calibration set (e.g. labeled mappings) or is a heuristic midpoint.
+    Discovery hypotheses produced by heuristics are uncalibrated by default
+    (see :meth:`from_evidence_strength`); human-asserted confidences in
+    approved Mappings default to calibrated.  Entropy must refuse to
+    normalize uncalibrated values (#36)."""
 
     overall: float
     drivers: tuple[str, ...] = ()
+    calibrated: bool = True
 
     def __post_init__(self) -> None:
         if not 0.0 <= self.overall <= 1.0:
             raise ValueError("confidence must be in [0,1]")
+
+    @classmethod
+    def from_evidence_strength(cls, strength: str,
+                                drivers: tuple[str, ...] = ()) -> "Confidence":
+        """Create an *uncalibrated* Confidence from an ordinal evidence
+        strength (weak/moderate/strong) until a calibration set exists
+        (#36).
+
+        The numeric midpoint is a placeholder, not a probability — the
+        ``calibrated`` flag ensures entropy and other numeric consumers
+        refuse or flag it.
+        """
+        if strength == "weak":
+            value = 0.33
+        elif strength == "moderate":
+            value = 0.5
+        elif strength == "strong":
+            value = 0.75
+        else:
+            raise ValueError(
+                f"evidence strength must be 'weak', 'moderate', or 'strong'; got {strength!r}")
+        return cls(value, drivers, calibrated=False)
 
 
 @dataclass(frozen=True)
@@ -99,6 +129,7 @@ class SemanticHypothesis:
     candidate_meaning: str
     concept: str
     confidence: Confidence
+    evidence_basis: str = ""  # what produced this hypothesis: heuristic/rule/evidence (#36)
     supporting: list[str] = field(default_factory=list)
     contradicting: list[str] = field(default_factory=list)
     alternatives: list[str] = field(default_factory=list)

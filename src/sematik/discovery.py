@@ -81,27 +81,46 @@ def hypotheses_for_column(name: str, profile: dict[str, Any]) -> list[SemanticHy
     if distinct_ratio < 0.01 and len(top) <= 8:
         hyps.append(SemanticHypothesis(
             candidate_meaning=f"likely a code/flag column (low distinct ratio, {len(top)} dominant values)",
-            concept="codeset_candidate", confidence=Confidence(0.6, ("cardinality", "dominance")),
-            supporting=["low distinct_ratio", f"{len(top)} dominant values"], affected_records=profile["count"]))
+            concept="codeset_candidate",
+            confidence=Confidence.from_evidence_strength("moderate",
+                                                         ("cardinality", "dominance")),
+            evidence_basis="heuristic: distinct-ratio < 0.01 and ≤8 dominant values",
+            supporting=["low distinct_ratio", f"{len(top)} dominant values"],
+            affected_records=profile["count"]))
     if distinct_ratio > 0.99 and profile["count"] > 1:
         hyps.append(SemanticHypothesis(
             candidate_meaning="likely an identifier column (near-unique)",
-            concept="identifier_candidate", confidence=Confidence(0.65, ("uniqueness",)),
-            supporting=["near-unique values"], affected_records=profile["count"]))
+            concept="identifier_candidate",
+            confidence=Confidence.from_evidence_strength("moderate", ("uniqueness",)),
+            evidence_basis="heuristic: distinct-ratio > 0.99",
+            supporting=["near-unique values"],
+            affected_records=profile["count"]))
     types = set(profile["types"])
     if types == {"bool"} or types == {"int"} and profile["distinct"] == 2:
         hyps.append(SemanticHypothesis(
             candidate_meaning="likely a flag (boolean/binary)",
-            concept="flag_candidate", confidence=Confidence(0.7, ("binary_domain",)),
-            supporting=["two-value domain"], affected_records=profile["count"]))
+            concept="flag_candidate",
+            confidence=Confidence.from_evidence_strength("strong",
+                                                         ("binary_domain",)),
+            evidence_basis="heuristic: binary-domain (bool or 2-value int)",
+            supporting=["two-value domain"],
+            affected_records=profile["count"]))
     if profile["null_rate"] > 0.5:
         hyps.append(SemanticHypothesis(
             candidate_meaning="sparse field — possibly legacy/obsolete or conditional",
-            concept="sparse_candidate", confidence=Confidence(0.55, ("null_rate",)),
-            supporting=[f"null_rate={profile['null_rate']:.2f}"], affected_records=profile["count"]))
+            concept="sparse_candidate",
+            confidence=Confidence.from_evidence_strength("moderate",
+                                                         ("null_rate",)),
+            evidence_basis="heuristic: null_rate > 0.5",
+            supporting=[f"null_rate={profile['null_rate']:.2f}"],
+            affected_records=profile["count"]))
     if not hyps:
         hyps.append(SemanticHypothesis(
             candidate_meaning="meaning unresolved — needs documentation/SME review",
-            concept="unknown", confidence=Confidence(0.2, ("insufficient_signal",)),
-            contradicting=["no strong structural signal"], affected_records=profile["count"]))
+            concept="unknown",
+            confidence=Confidence.from_evidence_strength("weak",
+                                                         ("insufficient_signal",)),
+            evidence_basis="heuristic: no-signal fallback",
+            contradicting=["no strong structural signal"],
+            affected_records=profile["count"]))
     return hyps
