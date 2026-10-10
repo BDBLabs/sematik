@@ -279,21 +279,52 @@ PRs — each is awaiting independent review and owner merge authorization.
 - **Test count:** 144 passed (139 baseline + 5 new #36 tests)
 - **Known limitation:** numeric midpoints (0.33/0.5/0.75) are placeholders, not
   calibrated probabilities; calibration set needed (issue #37)
-- **AI Participation:** AI-Drafted (gpt-6-astra); subagent review pending
+- **AI Participation:** AI-Drafted (gpt-6-astra); subagent review completed, APPROVE
+  with tracked follow-ups (F-05 convention-based gate, F-06 unenforced
+  evidence_basis)
 
-### Review status
+### Review status (updated 2026-10-10)
 
-- PR #52: merged by owner authorization; independent subagent review was
-  conducted for the #24 CRITICAL-fix cycle (empty-string evidence_refs bypass)
-- PR #53: subagent review requested (different model identity pending
-  verification; per AGENTS.md §8 exception, may require per-PR owner note)
-- PR #54: subagent review requested (same as #53)
-- PR #55: subagent review requested (same as #53)
+All three PRs have now undergone independent subagent review and been merged
+into `main` under your cross-model review authorization ("Yes please do the
+cross model review"):
 
-**Open question:** If the subagent's underlying model identity cannot be
-verified as distinct from the author (gpt-6-astra), the AGENTS.md §8 exception
-requires a per-PR owner note in chat for cross-model review certification.
-This applies to PRs #53, #54, and #55.
+| PR | Issue | Review result | Merge commit | Tests |
+|---|---|---|---|---|
+| #52 | #24 | APPROVE (merged earlier by owner auth) | `da5a5d7` | 139 pass |
+| #55 | #36 | APPROVE (2 MED, 4 LOW, 0 blocking) | `f506ee1` | 144 pass |
+| #53 | #31 | Approve + fix Decimal reconcile (1 MED) | `85f7d77` | 151 pass |
+| #54 | #30 | Fix + merge (1 HIGH, 2 MED, 1 LOW) | `c14bf95` | 167 pass |
+
+**Subagent review findings addressed before merge:**
+
+- **#31 review follow-up:** `reconcile._finite_number` now accepts `Decimal`
+  (coerced to float for finiteness check); regression tests
+  `test_decimal_target_is_valid_amount` +
+  `test_decimal_source_and_target_match` added.
+- **#30 review follow-up:** SQL comment injection fixed via
+  `_sanitize_for_comment()` (strips 0x00–0x1f/0x7f control chars) +
+  `quote_literal()` on comment fields; `rename` op lowered identically to
+  `copy`; `_validate_step()` now called in `compile_mapping_to_sql`; tests
+  `test_sql_comment_strips_newline_in_mapping_id`,
+  `test_sql_comment_strips_newline_in_canonical_concept`,
+  `test_sql_lowering_handles_rename_op`, `test_sql_lowering_validates_steps`
+  added.
+
+**Current main:** `c14bf95` — 167 passed, 0 failed.
+Feature branches deleted: `ops/calibrated-confidence-#36`,
+`ops/exact-numerics-#31`, `ops/sql-safe-lowering-#30`.
+
+**Remaining open findings (pre-existing, out of scope for #24/#30/#31/#36):**
+
+- Pre-existing ruff C901 on `_apply` in `compiler.py` (complexity 13 > 10) —
+  noted in prior review; not introduced by these PRs.
+- Pre-existing non-deterministic manifest hash (`plan.digest()` includes
+  `mapping_id` from `uuid4()`) — unrelated to all merged PRs.
+- Issue #37 (spurious FK candidates), #33 (entropy redesign), #9 (human-review
+  UI), #24 forward-hardening (evidence_basis `__post_init__` validation,
+  lint rule to force `from_evidence_strength` in discovery) — tracked as
+  separate open issues.
 
 AI-Model: gpt-6-astra (exact deployed version unavailable)
 AI-Provider: OpenAI
