@@ -26,7 +26,9 @@ def main() -> None:
     apn_profile = profile_column([r["APN"] for r in rows])
     print(f"[2] APN profile: distinct/{apn_profile['count']}, null_rate={apn_profile['null_rate']}")
     for h in hypotheses_for_column("APN", apn_profile):
-        print(f"    hypothesis: {h.candidate_meaning} (confidence {h.confidence.overall})")
+        cal = "calibrated" if h.confidence.calibrated else "uncalibrated"
+        print(f"    hypothesis: {h.candidate_meaning} "
+              f"(strength={h.confidence.overall}, {cal}, basis={h.evidence_basis})")
 
     mapping = Mapping(
         source_artifact="LEGACYDB.PARCEL",
