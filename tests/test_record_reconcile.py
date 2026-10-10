@@ -68,3 +68,26 @@ def test_duplicate_keys_are_not_balanced():
               {"apn": "001", "total_assessed": 100.0}])
     assert r["balanced"] is False
     assert r["duplicates"] == ["001"]
+
+
+# ---- #31 regression: Decimal totals from exact-numeric derive_sum -------------
+
+def test_decimal_target_is_valid_amount():
+    """A Decimal total (e.g. from derive_sum preserving Decimal semantics)
+    must not be falsely flagged as an invalid_target (#31 follow-up)."""
+    from decimal import Decimal
+    r = _rec([{"APN": "001", "LNDVAL": 100}],
+             [{"apn": "001", "total_assessed": Decimal("100.0")}])
+    assert r["balanced"] is True
+    assert r["mismatches"] == []
+
+
+def test_decimal_source_and_target_match():
+    """Both source total and target are Decimal — derivation must hold."""
+    from decimal import Decimal
+    src = [{"APN": "001", "LNDVAL": Decimal("150.0")}]
+    outputs = [{"apn": "001", "total_assessed": Decimal("150.0")}]
+    r = reconcile_records(src, outputs, source_key="APN", target_key="apn",
+                          numeric_pairs=[("LNDVAL", "total_assessed")])
+    assert r["balanced"] is True
+    assert r["checked"] == 1

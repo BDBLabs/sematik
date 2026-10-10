@@ -285,16 +285,83 @@ def _sum_plan():
     return m, compile_mapping(m, [PlanStep("derive_sum", {"parts": ["a", "b"], "to": "s"})])
 
 
-@pytest.mark.parametrize("bad", ["abc", "1e999", "nan", float("inf"), float("nan"),
-                                 True, [1], {"k": 1}, Decimal("NaN"), 10 ** 400])
+@pytest.mark.parametrize("bad", ["abc", "nan", float("inf"), float("nan"),
+                                 True, [1], {"k": 1}, Decimal("NaN"), None])
 def test_derive_sum_rejects_unusable_values_and_batch_continues(bad):
     m, p = _sum_plan()
     rows = [{"_id": 1, "a": 1, "b": 2}, {"_id": 2, "a": bad, "b": 2}, {"_id": 3, "a": 4, "b": 5}]
     run = _run(rows, p, m)
     assert (run.converted, run.rejected, run.total_records) == (2, 1, 3)
     assert run.exceptions[0].record_id == "2"
-    assert [o["s"] for o in run.outputs] == [3.0, 9.0]
+    assert [o["s"] for o in run.outputs] == [3, 9]          # int preserved (#31)
     assert all(math.isfinite(o["s"]) for o in run.outputs)
+
+
+# ---- #31: exact numeric semantics preservation -----------------------------
+
+def test_derive_sum_preserves_large_integers():
+    """Integers above IEEE-754 exact range survive unchanged (#31)."""
+    m, p = _sum_plan()
+    big = 10 ** 40
+    rows = [{"_id": 1, "a": big, "b": 2}]
+    run = _run(rows, p, m)
+    assert len(run.outputs) == 1
+    assert run.outputs[0]["s"] == big + 2
+    assert isinstance(run.outputs[0]["s"], int)
+
+
+def test_derive_sum_preserves_decimal_exactness():
+    """0.1 + 0.2 == 0.3 with Decimal, not 0.30000000000000004 (#31)."""
+    m, p = _sum_plan()
+    rows = [{"_id": 1, "a": Decimal("0.1"), "b": Decimal("0.2")}]
+    run = _run(rows, p, m)
+    result = run.outputs[0]["s"]
+    assert result == Decimal("0.3")
+    assert isinstance(result, Decimal)
+
+
+def test_derive_sum_float_input_yields_float():
+    """A genuine float input propagates float semantics (0.1 + 0.2 != 0.3
+    is the user's responsibility, not the engine's) (#31)."""
+    m, p = _sum_plan()
+    rows = [{"_id": 1, "a": 0.1, "b": 0.2}]
+    run = _run(rows, p, m)
+    result = run.outputs[0]["s"]
+    assert isinstance(result, float)
+    assert abs(result - 0.3) < 1e-15
+
+
+def test_derive_sum_rejects_mixed_decimal_and_float():
+    """Decimal + float is an incompatible exactness representation and must
+    be rejected, not silently coerced (#31)."""
+    m, p = _sum_plan()
+    rows = [{"_id": 1, "a": Decimal("0.1"), "b": 0.2}]
+    run = _run(rows, p, m)
+    assert run.converted == 0
+    assert run.rejected == 1
+    assert "incompatible" in run.exceptions[0].reason
+
+
+def test_derive_sum_string_parsing_preserves_types():
+    """String inputs are parsed to int or Decimal, not float (#31)."""
+    m, p = _sum_plan()
+    rows = [
+        {"_id": 1, "a": "100", "b": "2"},          # int + int → int
+        {"_id": 2, "a": "0.10", "b": "0.20"},      # Decimal + Decimal → Decimal
+    ]
+    run = _run(rows, p, m)
+    assert isinstance(run.outputs[0]["s"], int)
+    assert run.outputs[0]["s"] == 102
+    assert isinstance(run.outputs[1]["s"], Decimal)
+    assert run.outputs[1]["s"] == Decimal("0.30")
+
+
+def test_derive_sum_empty_string_and_whitespace_rejected():
+    """Empty / whitespace-only strings are not numeric (#31)."""
+    m, p = _sum_plan()
+    rows = [{"_id": 1, "a": "", "b": 2}, {"_id": 2, "a": "   ", "b": 2}]
+    run = _run(rows, p, m)
+    assert (run.converted, run.rejected) == (0, 2)
 
 
 def test_unhashable_code_value_rejected_and_batch_continues():

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 from collections import Counter
+from decimal import Decimal
 from typing import Any, Callable, Iterable
 
 
@@ -28,10 +29,14 @@ def _finite_number(value: Any) -> float | None:
 
     Bools, NaN, infinities, and non-numeric values are not valid amounts —
     they must surface as mismatches (spec §68), never pass silently.
+
+    ``Decimal`` is accepted (coerced to ``float`` for the finiteness check)
+    so that exact-numeric ``derive_sum`` totals from the compiler can be
+    reconciled without being falsely flagged as invalid (#31).
     """
     if isinstance(value, bool):
         return None
-    if isinstance(value, (int, float)):
+    if isinstance(value, (int, float, Decimal)):
         f = float(value)
         return f if math.isfinite(f) else None
     return None
@@ -56,7 +61,7 @@ def _check_pair(tk: str, src_total_field: str, tgt_field: str,
             expected = None
         if expected is None or not math.isfinite(expected):
             expected = None
-    elif isinstance(src_parts, (int, float)) and not isinstance(src_parts, bool):
+    elif isinstance(src_parts, (int, float, Decimal)) and not isinstance(src_parts, bool):
         expected = float(src_parts) if math.isfinite(float(src_parts)) else None
     else:
         expected = None

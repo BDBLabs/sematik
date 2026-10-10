@@ -12,7 +12,7 @@ import hashlib
 import json
 import math
 from dataclasses import dataclass, field
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from types import MappingProxyType
 from typing import Any
 
@@ -137,23 +137,86 @@ def _rid(row: dict[str, Any]) -> str:
     return str(row.get("_id", "?"))
 
 
-def _number(value: Any, rid: str, name: str) -> float:
+def _parse_numeric_string(raw: str, rid: str, name: str) -> int | Decimal | float:
+    """Parse a string to the most appropriate exact numeric type (#31).
+
+    Order of preference:
+    1. ``int``  — preserves integers above IEEE-754 exact range (e.g. 10**400).
+    2. ``Decimal`` — preserves exact decimal arithmetic for financial values
+       (``0.1 + 0.2 == 0.3``, not ``0.30000000000000004``).
+    3. ``float`` — only for inputs that are genuinely float (e.g. hex floats).
+    """
+    if not raw:
+        raise ConversionUngecognizable(rid, f"component {name} is not numeric")
+    try:
+        return int(raw)
+    except ValueError:
+        pass
+    try:
+        d = Decimal(raw)
+        if not d.is_finite():
+            raise ConversionUngecognizable(rid, f"component {name} is not finite")
+        return d
+    except InvalidOperation:
+        pass
+    try:
+        f = float(raw)
+    except (ValueError, OverflowError):
+        raise ConversionUngecognizable(rid, f"component {name} is not numeric") from None
+    if not math.isfinite(f):
+        raise ConversionUngecognizable(rid, f"component {name} is not finite")
+    return f
+
+
+def _number(value: Any, rid: str, name: str) -> int | Decimal | float:
+    """Coerce a derived input to a numeric form, preserving exactness (#31).
+
+    Integers stay ``int``, Decimals stay ``Decimal``, floats stay ``float`` —
+    no silent ``float()`` coercion that loses precision.  String inputs are
+    parsed to ``int`` or ``Decimal`` (preferred) before falling back to
+    ``float``.
+    """
     if isinstance(value, bool):
         raise ConversionUngecognizable(rid, f"component {name} is boolean, not numeric")
     if isinstance(value, (int, float, Decimal)):
-        raw = value
+        number = value
     elif isinstance(value, str):
-        raw = value.strip()
+        number = _parse_numeric_string(value, rid, name)
     else:
         raise ConversionUngecognizable(
             rid, f"component {name} has unsupported type {type(value).__name__}")
-    try:
-        number = float(raw)
-    except (ValueError, OverflowError, TypeError):
-        raise ConversionUngecognizable(rid, f"component {name} is not numeric") from None
-    if not math.isfinite(number):
+    if isinstance(number, float) and not math.isfinite(number):
+        raise ConversionUngecognizable(rid, f"component {name} is not finite")
+    if isinstance(number, Decimal) and not number.is_finite():
         raise ConversionUngecognizable(rid, f"component {name} is not finite")
     return number
+
+
+def _apply_derive_sum(step: PlanStep, row: dict[str, Any]) -> int | Decimal | float:
+    """Accumulate component values with exactness-preserving types (#31).
+
+    Starts from ``int`` 0, so ``int + int → int``, ``int + Decimal → Decimal``,
+    ``int + float → float``.  Mixing ``Decimal`` and ``float`` in the same
+    sum is rejected as incompatible (fail-closed, spec §68).
+    """
+    total: int | Decimal | float = 0
+    for f in step.args["parts"]:
+        v = row.get(f)
+        if v is None:
+            raise ConversionUngecognizable(_rid(row), f"missing component {f}")
+        num = _number(v, _rid(row), f)
+        try:
+            total += num
+        except TypeError as exc:
+            raise ConversionUngecognizable(
+                _rid(row),
+                f"incompatible numeric types in derive_sum {num!r} + {total!r}: {exc}") from None
+    if isinstance(total, Decimal):
+        if not total.is_finite():
+            raise ConversionUngecognizable(_rid(row), "sum is not finite")
+    elif not math.isfinite(total):
+        raise ConversionUngecognizable(_rid(row), "sum is not finite")
+    return total
 
 
 def _apply(step: PlanStep, row: dict[str, Any], out: dict[str, Any]) -> dict[str, Any]:
@@ -166,15 +229,7 @@ def _apply(step: PlanStep, row: dict[str, Any], out: dict[str, Any]) -> dict[str
     if step.op == "rename":
         return _apply(PlanStep("copy", step.args), row, out)
     if step.op == "derive_sum":
-        total = 0.0
-        for f in step.args["parts"]:
-            v = row.get(f)
-            if v is None:
-                raise ConversionUngecognizable(_rid(row), f"missing component {f}")
-            total += _number(v, _rid(row), f)
-        if not math.isfinite(total):
-            raise ConversionUngecognizable(_rid(row), "sum is not finite")
-        out[step.args["to"]] = total
+        out[step.args["to"]] = _apply_derive_sum(step, row)
         return out
     if step.op == "code_translate":
         raw = row.get(step.args["from"])
