@@ -11,6 +11,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import re
 from dataclasses import dataclass, field
 from decimal import Decimal
 from types import MappingProxyType
@@ -266,6 +267,24 @@ def quote_literal(value: str, dialect: str = "postgres") -> str:
     return f"'{value.replace(chr(39), chr(39) * 2)}'"
 
 
+def _sanitize_for_comment(value: Any) -> str:
+    """Strip control characters from a string for safe embedding in a SQL
+    single-line comment (#30).
+
+    SQL ``--`` comments are single-line — any newline character terminates the
+    comment and allows subsequent text to be parsed as SQL code.  This is a
+    comment-injection vector that can escalate to SQL injection if the
+    embedded value comes from user-provided Mapping fields (``mapping.id``,
+    ``canonical_concept``).
+
+    All control characters (0x00–0x1f, 0x7f) are removed to ensure the
+    value cannot break out of the ``--`` comment delimiter.
+    """
+    if not isinstance(value, str):
+        value = str(value)
+    return re.sub(r"[\x00-\x1f\x7f]", "", value)
+
+
 def compile_mapping_to_sql(mapping: Mapping, steps: list[PlanStep], *,
                            source_table: str, dialect: str = "postgres") -> str:
     """Emit an equivalent SELECT for the deterministic plan (spec §19:
@@ -276,9 +295,11 @@ def compile_mapping_to_sql(mapping: Mapping, steps: list[PlanStep], *,
     Fail-closed (spec §68, issue #30): ops whose Python failure semantics
     cannot be preserved in a single SELECT are refused rather than silently
     weakened.  Only value-preserving lowering is emitted.  All identifiers
-    (column names, target aliases, table names) and string literals are
-    safely quoted via ``quote_ident`` / ``quote_literal`` — names containing
-    reserved words, spaces, or special characters are handled correctly."""
+    (column names, target aliases, table names) are safely quoted via
+    ``quote_ident`` — names containing reserved words, spaces, or special
+    characters are handled correctly.  Metadata embedded in SQL single-line
+    comments is sanitized to strip control characters, preventing
+    comment-injection from user-provided Mapping fields."""
     problems = mapping.approval_problems()
     if problems:
         raise CompilationError("mapping must be approved before compilation: " + "; ".join(problems))
@@ -286,7 +307,13 @@ def compile_mapping_to_sql(mapping: Mapping, steps: list[PlanStep], *,
         raise CompilationError(f"unsupported SQL dialect: {dialect!r}")
     select_exprs: list[str] = []
     for step in steps:
+        _validate_step(step)
         if step.op == "copy":
+            src = quote_ident(step.args["from"], dialect)
+            dst = quote_ident(step.args["to"], dialect)
+            select_exprs.append(f"{src} AS {dst}")
+        elif step.op == "rename":
+            # Semantically identical to copy (#30): target alias replaces source.
             src = quote_ident(step.args["from"], dialect)
             dst = quote_ident(step.args["to"], dialect)
             select_exprs.append(f"{src} AS {dst}")
@@ -313,8 +340,13 @@ def compile_mapping_to_sql(mapping: Mapping, steps: list[PlanStep], *,
         raise CompilationError("no compilable steps")
     digest = mapping.digest()
     table = quote_ident(source_table, dialect)
-    return (f"-- compiled from mapping {mapping.id} digest={digest}\n"
-            f"-- canonical concept: {mapping.canonical_concept}\n"
+    # Sanitize user-provided values before embedding in SQL comments —
+    # newlines in mapping.id/canonical_concept would break out of the
+    # "--" comment and escalate to SQL injection (#30).
+    safe_id = quote_literal(_sanitize_for_comment(mapping.id), dialect)
+    safe_concept = quote_literal(_sanitize_for_comment(mapping.canonical_concept), dialect)
+    return (f"-- compiled from mapping {safe_id} digest={digest}\n"
+            f"-- canonical concept: {safe_concept}\n"
             f"SELECT {', '.join(select_exprs)}\nFROM {table};")
 
 

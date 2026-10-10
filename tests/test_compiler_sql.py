@@ -179,3 +179,43 @@ def test_python_backend_rejects_what_sql_cannot_represent():
         plan, m, source_snapshot="s", domain_pack_version="p", engine_version="e",
         provenance_of=lambda r: Provenance(source_system="s", source_record=str(r["_id"])))
     assert run.converted == 0 and run.rejected == 2
+
+
+# ---- #30 follow-up: SQL comment injection, rename lowering, step validation
+
+def test_sql_comment_strips_newline_in_mapping_id():
+    """mapping.id containing a newline must not break out of the SQL
+    single-line comment — that would be SQL injection (#30 HIGH)."""
+    m = _approved()
+    m.id = "evil\nDROP TABLE users;"
+    sql = compile_mapping_to_sql(m, [PlanStep("copy", {"from": "a", "to": "t"})],
+                                 source_table="src")
+    for line in sql.split("\n"):
+        assert not line.strip().startswith("DROP"), f"SQL injection! line: {line!r}"
+
+
+def test_sql_comment_strips_newline_in_canonical_concept():
+    """canonical_concept containing a newline must not break out of the
+    SQL comment (#30 HIGH)."""
+    m = _approved()
+    m.canonical_concept = "c\nDROP TABLE users;"
+    sql = compile_mapping_to_sql(m, [PlanStep("copy", {"from": "a", "to": "t"})],
+                                 source_table="src")
+    for line in sql.split("\n"):
+        assert not line.strip().startswith("DROP"), f"SQL injection! line: {line!r}"
+
+
+def test_sql_lowering_handles_rename_op():
+    """rename op lowers identically to copy — value-preserving alias (#30)."""
+    steps = [PlanStep("rename", {"from": "old_name", "to": "new_name"})]
+    sql = compile_mapping_to_sql(_approved(), steps, source_table="src")
+    assert '"old_name" AS "new_name"' in sql
+
+
+def test_sql_lowering_validates_steps():
+    """compile_mapping_to_sql calls _validate_step for each step, so invalid
+    steps raise CompilationError (not KeyError) (#30 LOW)."""
+    with pytest.raises(CompilationError, match="missing required args"):
+        compile_mapping_to_sql(_approved(),
+                               [PlanStep("copy", {"from": "a"})],  # missing "to"
+                               source_table="t")
