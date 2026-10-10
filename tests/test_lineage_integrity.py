@@ -41,6 +41,9 @@ def test_actor_string_alone_cannot_compile():
     ("approved_by", "", "approver"),
     ("approval_ref", " ", "approval reference"),
     ("version", "", "version"),
+    ("evidence_refs", [], "evidence"),
+    ("golden_plan_digest", "", "golden"),
+    ("blocking_question_ids", ["Q-1"], "blocking questions"),
 ])
 def test_each_approval_element_is_required(field, value, fragment):
     m = approved_mapping(**{field: value})
@@ -62,6 +65,92 @@ def test_unknown_op_and_missing_args_fail_at_compile_time():
         compile_mapping(m, [PlanStep("explode", {})])
     with pytest.raises(CompilationError, match="missing required args"):
         compile_mapping(m, [PlanStep("copy", {"from": "x"})])
+
+
+def test_evidence_and_golden_fields_appear_in_digest():
+    """Evidence refs and golden plan digest are part of the mapping's content
+    fingerprint: changing either changes the digest (#24)."""
+    from dataclasses import replace
+    m = approved_mapping()
+    base = m.digest()
+    assert replace(m, evidence_refs=["evidence:changed"]).digest() != base
+    assert replace(m, golden_plan_digest="golden:changed").digest() != base
+    assert replace(m, blocking_question_ids=[]).digest() == base  # empty → no change
+
+
+def test_evidence_change_invalidates_plan_binding():
+    """A plan compiled under one evidence set must not run against a mapping
+    whose evidence has changed — the plan must be recompiled and re-approved
+    (#24)."""
+    from dataclasses import replace
+    m = approved_mapping()
+    p = compile_mapping(m, [PlanStep("copy", {"from": "x", "to": "t"})])
+    assert p.bound_to(m)
+    m_changed = replace(m, evidence_refs=["evidence:changed"])
+    assert not p.bound_to(m_changed)
+
+
+def test_golden_plan_digest_change_invalidates_plan_binding():
+    """Changing the golden plan reference invalidates the compiled plan,
+    requiring recompilation under the new tested plan (#24)."""
+    from dataclasses import replace
+    m = approved_mapping()
+    p = compile_mapping(m, [PlanStep("copy", {"from": "x", "to": "t"})])
+    m_changed = replace(m, golden_plan_digest="golden:updated")
+    assert not p.bound_to(m_changed)
+
+
+def test_run_refuses_when_evidence_changes_after_compilation():
+    """After compilation, changing the evidence refs makes the plan unbound —
+    even though the mapping is still structurally approved, the plan's
+    embedded mapping digest no longer matches, so the run refuses rather
+    than executing under stale evidence (#24)."""
+    from dataclasses import replace
+    m = approved_mapping()
+    p = compile_mapping(m, [PlanStep("copy", {"from": "x", "to": "t"})])
+    # Still approved (has evidence + golden + 7 levels) but different digest
+    m_changed = replace(m, evidence_refs=["evidence:changed"])
+    assert m_changed.approved()
+    with pytest.raises(CompilationError, match="not bound"):
+        _run([{"_id": 1, "x": 1}], p, m_changed)
+
+
+# ---- #24 (cont.): content validation on evidence & question refs --------
+
+@pytest.mark.parametrize("bad_refs", [[""], ["   "], ["ok", ""]])
+def test_evidence_refs_with_empty_strings_rejected_at_construction(bad_refs):
+    """Empty or whitespace-only evidence refs are a programming error and
+    must be rejected at construction (fail-fast), not silently accepted
+    (#24 follow-up to cross-model review)."""
+    with pytest.raises(ValueError, match="evidence_refs"):
+        approved_mapping(evidence_refs=bad_refs)
+
+
+@pytest.mark.parametrize("bad_refs", [[""], ["   "], ["Q-1", ""]])
+def test_blocking_question_ids_with_empty_strings_rejected_at_construction(bad_refs):
+    """Same content-validation guard applies to blocking_question_ids (#24)."""
+    with pytest.raises(ValueError, match="blocking_question_ids"):
+        approved_mapping(blocking_question_ids=bad_refs)
+
+
+def test_empty_evidence_refs_rejected_by_approval_not_construction():
+    """An empty list is valid at construction (it means 'no evidence yet')
+    but must be caught by approval_problems() (#24)."""
+    m = approved_mapping(evidence_refs=[])
+    assert any("evidence" in p for p in m.approval_problems())
+
+
+def test_mutation_to_empty_evidence_caught_by_approval():
+    """Defense-in-depth: since Mapping is not frozen, a caller could mutate
+    evidence_refs after construction. approval_problems() must still catch
+    empty/whitespace entries (#24)."""
+    m = approved_mapping()
+    m.evidence_refs = [""]               # direct mutation, bypasses __post_init__
+    assert not m.approved()
+    assert any("evidence" in p for p in m.approval_problems())
+
+    m.blocking_question_ids = ["Q-1"]   # valid unresolved question, bypasses __post_init__
+    assert any("blocking questions" in p for p in m.approval_problems())
 
 
 # ---- #25: immutable plans, content-bound manifest -------------------------
