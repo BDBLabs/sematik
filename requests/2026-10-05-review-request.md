@@ -109,3 +109,102 @@ AI-Model: GPT-6 (exact deployed version unavailable)
 AI-Provider: OpenAI
 AI-Tool: Codex
 AI-Role: Reviewed
+
+
+## Re-review — main @ b0dee1b, 2026-10-10
+
+Decision: APPROVE on implementation blockers, **conditional** on tracked follow-ups
+(see below). The eleven findings from the bed533a rejection have each been
+addressed by a dedicated fix commit on `main` and covered by regression tests
+that reproduce the exact counterexamples. Architectural direction (four-plane
+separation, ADR-0001–0004) remains sound; the §68 fail-visible, §69 determinism,
+§22 reproducibility and §61 golden-gate guarantees are now implemented on the
+real execution path and exercised by tests.
+
+Reviewed-Commit-SHA: b0dee1b27dd4567a257ea11701c3794f730186df
+
+### Validation
+
+- `python3 -m pytest tests -q` → **124 passed**.
+- A targeted harness replayed **17 concrete counterexample probes** spanning the
+  11 findings (some findings covering multiple probe cases; e.g. F6 exercised
+  three rows, F5 two). All **17 PASS** against the reviewed tree.
+
+### Finding → fix-commit → regression-test mapping
+
+| # | Finding (severity) | Fix commit(s) | Regression tests |
+|---|---|---|---|
+| 1 | Mapping.approved accepts unverified actor; no approval/ref/levels required (HIGH) | `b908f65` + `a18971e`/`fa6a2b2` — `approval_problems()` enforces named approver, approval_ref, version, finite positive confidence, all 7 levels | `tests/test_lineage_integrity.py`: `test_actor_string_alone_cannot_compile`, `test_each_approval_element_is_required`, `test_incomplete_mapping_cannot_compile` |
+| 2 | Compiled steps mutable; `x→y` changes output 1→2, manifest hash unchanged (HIGH) | `b908f65` + `fcd075f` — `PlanStep.args` frozen via `_freeze()`; `manifest_hash` covers outputs/exceptions/assertions/source_digest | `test_lineage_integrity.py`: `test_plan_steps_are_immutable_and_isolated_from_caller`, `test_manifest_changes_when_plan_changes_even_if_outputs_match`, `test_manifest_changes_when_source_content_changes_with_same_counts`, `test_run_refuses_plan_when_mapping_changed_after_compilation`, `test_run_refuses_plan_when_approval_changed_after_compilation` |
+| 3 | run_conversion ignores provenance_of; assertions empty (HIGH) | `25a8b45` — `provenance_of` required, one `Assertion` per converted record carrying mapping + plan digests | `test_lineage_integrity.py`: `test_run_emits_source_bound_assertions_for_every_converted_record`, `test_record_without_provenance_is_rejected_not_converted`, `test_provenance_resolver_is_required`, `test_provenance_resolver_failure_rejects_record_and_continues`, `test_execution_rejection_retains_record_provenance` |
+| 4 | assertion_from_plan_output substitutes 99 for zero target (#27) (HIGH) | `b908f65` — reads exact target key; raises `LineageError` on missing key; falsey values preserved | `test_lineage_integrity.py`: `test_assertion_preserves_falsey_target_values`, `test_assertion_requires_the_declared_target_key`, `test_zero_valued_conversion_keeps_zero_through_the_run`, `test_run_rejects_record_when_output_lacks_declared_target` |
+| 5 | reconcile_records balanced=True for absent/NaN target (HIGH) | `abc5c94` — `_check_pair` returns explicit `missing_target`/`invalid_target`/`unsupported_source` mismatches; `balanced` requires zero findings | `tests/test_record_reconcile.py`: `test_missing_target_amount_is_not_balanced`, `test_nan_target_amount_is_not_balanced`, `test_non_numeric_target_is_not_balanced`, `test_missing_source_value_is_not_balanced`, `test_output_without_source_row_is_unmatched`, `test_duplicate_keys_are_not_balanced` |
+| 6 | compile_mapping_to_sql: unknown code→NULL via CASE ELSE; assert_not_null→WHERE filter (HIGH) | `aacff17` — `code_translate` and `assert_not_null` refused with `CompilationError` | `tests/test_compiler_sql.py`: `test_sql_lowering_refuses_divergent_ops`, `test_python_backend_rejects_what_sql_cannot_represent` |
+| 7 | Golden regression runs after conversion, doesn't gate (HIGH) | `3474df1` — `_enforce_golden_gate` runs **before** any conversion when `require_golden=True`; failing golden raises `CompilationError` | `tests/test_golden_pipeline.py`: `test_require_golden_blocks_failing_plan_before_conversion`, `test_golden_failure_changes_manifest_hash`, `test_require_golden_rejects_missing_evidence`, `test_require_golden_passes_and_records_evidence` |
+| 8 | IdentityRegistry.register silently overwrites canonical association (HIGH) | `be76275` — idempotent repeat registration; `IdentityConflict` on conflicting canonical; governed `reassign()` retains history | `tests/test_identity.py`: `test_repeat_registration_is_idempotent`, `test_reassignment_is_governed_and_keeps_history` |
+| 9 | semantic_diff meaning_changed=False for changed context/Domain Pack (HIGH) | `ea27f59` — per-level context diff; `domain_pack` inequality detected | `tests/test_semantic_diff.py`: `test_context_change_is_meaning_change`, `test_domain_pack_change_is_meaning_change` |
+| 10 | identity confidence accepts NaN (MEDIUM) | `be76275` — `register()`/`reassign()` reject non-finite confidence | `tests/test_identity.py`: `test_non_finite_confidence_rejected` |
+| 11 | Entropy: single hypothesis .001 → 0; weighting double-counts (MEDIUM) | `entropy.py` — `H(c) = -Σ pᵢ log₂ pᵢ` over competing hypotheses, weighted by affected-record share; single hypothesis ⇒ no competition ⇒ H=0 (correct) | `tests/test_innovation.py`: `test_entropy_zero_when_certain`, `test_entropy_counts_uniform_ambiguity`, `test_semantic_entropy_weighted` |
+
+### Re-run of prior counterexamples
+
+The exact values from the bed533a REJECT now behave as required:
+
+- **Approval**: an unapproved mapping (empty `approved_by` with complete levels) →
+  `CompilationError("no approver recorded")` ✅; a non-empty but *unverified*
+  actor name (`"anyone"`) passes the structural check — approver *verification*
+  remains the open `#24` gap (incomplete levels surface `CompilationError` for
+  missing levels, not the approver string).
+- **Immutability**: mutating the caller's step `args` dict after compile does not change `plan.digest()`; in-place mutation raises `TypeError` ✅
+- **Provenance**: `provenance_of=None` → `CompilationError("provenance_of is required")`; records without provenance → rejected, not converted, exception carries `provenance_ref` ✅
+- **Zero value**: `assertion_from_plan_output(plan, {'other':99,'t':0})` → `value=0`; `{'other':99}` (missing key) → `LineageError("refusing to substitute")` ✅
+- **Reconcile**: absent target → `balanced=False, kind="missing_target"`; `NaN` target → `balanced=False, kind="invalid_target"` ✅
+- **SQL vs Python**: `code_translate` and `assert_not_null` refused in SQL lowering; Python rejects `UNK9` code and `None` ID, 0 converted / 2 rejected ✅
+- **Golden gate**: `require_golden=True` with failing golden → `CompilationError` before any row converts; golden failure → manifest hash changes ✅
+- **Identity**: repeat register idempotent; different canonical → `IdentityConflict`; `reassign()` retains prior lineage ✅
+- **semantic_diff**: `domain_pack` change → `meaning_changed=True`; level context change → detected ✅
+- **Confidence NaN**: `register(..., confidence=float('nan'))` → `ValueError` ✅
+
+### Verdict
+
+All eleven implementation findings from `bed533a` are resolved: each has a fix
+commit on `main` (`b0dee1b`) and regression-test coverage that reproduces the
+specific counterexample. The architectural direction (four-plane separation per
+ADR-0001; discovery/propose/approve/compile/execute/reconcile/manifest lifecycle
+per §73) is sound, and the previously-missing guarantees — §68 fail-visible,
+§69 determinism, §22 reproducibility, §21 lineage, §61 golden gate — are now
+implemented on the real execution path and tested by `test_lineage_integrity.py`
+(the dedicated #24–#35 regression suite).
+
+**Conditional approvals / tracked follow-ups** (not regressions of the resolved
+findings above):
+
+- **#24** — `approval_problems()` enforces structural completeness (approver,
+  ref, version, confidence, 7 levels) but does **not** yet require bound
+  evidence, resolved blocking questions, or a reference to a tested plan. This
+  is the remaining gap in the approve→compile→run chain.
+- **#31** — `derive_sum` still coerces via `float()` (`_number()` in
+  `compiler.py`); exact `Decimal` semantics are not yet preserved. Tests reject
+  NaN/inf but precision loss is possible for high-precision inputs.
+- **#30** — SQL compilation refuses semantically divergent ops but the
+  identifier/literal quoting path remains `unsafe` (noted in code comment).
+
+Next action: the owner may merge. The #24/#31/#30 gaps are tracked as separate
+open issues and do not regress the resolved findings above. A follow-up fix PR
+addressing #24 (evidence-bound approval) is the recommended next step.
+
+### Highest-leverage next implementation step
+
+Close **#24** — extend `approval_problems()` to require (a) at least one
+evidence reference bound to the mapping, (b) no blocking `SemanticQuestion`
+unresolved for the concepts it touches, and (c) a reference to a passing golden
+plan digest. This completes the evidence-bound approval gate that §13/§24 and
+the original HIGH finding #1 demanded, making the full approve→compile→execute
+→lineage→manifest chain independently auditable. Concretely: add
+`evidence_refs: list[str]` and `blocking_question_ids: list[str]` to `Mapping`,
+add the checks, and add regression tests in `test_lineage_integrity.py`.
+
+AI-Model: gpt-6-astra (exact deployed version unavailable)
+AI-Provider: OpenAI
+AI-Tool: pool
+AI-Role: Reviewed
