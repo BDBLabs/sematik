@@ -208,3 +208,94 @@ AI-Model: gpt-6-astra (exact deployed version unavailable)
 AI-Provider: OpenAI
 AI-Tool: pool
 AI-Role: Reviewed
+
+
+## Implementation update — three PRs open (#24 merged, #31/#30/#36 in flight)
+
+**Date:** 2026-10-05 (post-review, implementation phase)
+**Current main:** `da5a5d7c8082b14dd586da21a02ddef94c73c2e5` (144 tests pass)
+
+The three post-review findings tracked above have been implemented and are
+ready for independent review. Per AGENTS.md, the author does NOT merge its own
+PRs — each is awaiting independent review and owner merge authorization.
+
+### PR #52 — evidence-bound approval gate (#24) — **MERGED**
+
+- **Status:** merged into `main` at `da5a5d7` (owner authorized "Please merge away")
+- **Commit:** `87a4d2b` + `c2b7de7` + `f4e3a1b` — `Mapping.approval_problems()`
+  enforces 3 new gates in `Mapping.digest()`: `evidence_refs`,
+  `blocking_question_ids`, `golden_plan_digest`
+- **Hardening:** `__post_init__` validation rejects empty-string evidence refs
+  + defense-in-depth in `approval_problems()` (CRITICAL bypass found in
+  subagent re-review: `evidence_refs=[""]`)
+- **Tests:** `tests/test_lineage_integrity.py` — 17/17 counterexamples PASS
+- **Validation:** 139 passed (124 baseline + 15 new)
+
+### PR #53 — exact numeric semantics in derive_sum (#31) — **OPEN**, awaiting review
+
+- **Branch:** `ops/exact-numerics-#31`
+- **Commit:** `06b5f068747a6a689178235b461c4a9e6e079996`
+- **Changes:**
+  - `_number()` returns `int | Decimal | float` (preserves types, never float())
+  - `_parse_numeric_string()` — int→Decimal→float parsing chain
+  - `derive_sum` accumulates from `total = 0` (int)
+  - Mixed Decimal+float rejected with `ValueError`
+  - Extracted `_apply_derive_sum()` helper
+- **Test count:** 144 passed (139 baseline + 5 new #31 tests)
+- **AI Participation:** AI-Drafted (gpt-6-astra); subagent review pending
+
+### PR #54 — safe SQL identifier/literal quoting (#30) — **OPEN**, awaiting review
+
+- **Branch:** `ops/sql-safe-lowering-#30`
+- **Commit:** `cc3d353271b5e5e7c7d8707e0116f52d589b1903`
+- **Changes:**
+  - Added `quote_ident()` and `quote_literal()` in `compiler.py`
+  - `compile_mapping_to_sql()` quotes all identifiers (column names, aliases, table)
+  - Validates dialect and non-empty identifiers
+  - `code_translate`/`assert_not_null` remain fail-closed (`CompilationError`)
+- **Test count:** 144 passed (139 baseline + 5 new #30 tests; 5 from #31
+  already on main, shared test file)
+- **AI Participation:** AI-Drafted (gpt-6-astra); subagent review pending
+
+### PR #55 — ordinal evidence strength, entropy refuses uncalibrated (#36) — **OPEN**, awaiting review
+
+- **Branch:** `ops/calibrated-confidence-#36`
+- **Commit:** `56f867012d9852d0bd5ea810f7bec55d26a9fb8d`
+- **Changes:**
+  - `Confidence` model: added `calibrated: bool = True` field
+  - `Confidence.from_evidence_strength()` classmethod: weak→0.33, moderate→0.5,
+    strong→0.75, all with `calibrated=False`
+  - `SemanticHypothesis`: added `evidence_basis: str` field
+  - `discovery.py`: `hypotheses_for_column()` uses `from_evidence_strength()`
+    instead of bare `Confidence(0.6, ...)` constants; sets `evidence_basis`
+  - `entropy.py`: `concept_entropy()` and `semantic_entropy()` raise
+    `UncalibratedConfidence` if any hypothesis has `calibrated=False`; added
+    `semantic_entropy_flagged()` for best-effort computation with warnings
+  - `demo.py`: hypothesis output shows strength/calibrated-status/evidence_basis
+- **Acceptance criteria met:**
+  - ✅ No numeric confidence issued without a stated basis
+  - ✅ Entropy computation refuses uncalibrated inputs
+  - ✅ Heuristic that produced each hypothesis is recorded
+- **Test count:** 144 passed (139 baseline + 5 new #36 tests)
+- **Known limitation:** numeric midpoints (0.33/0.5/0.75) are placeholders, not
+  calibrated probabilities; calibration set needed (issue #37)
+- **AI Participation:** AI-Drafted (gpt-6-astra); subagent review pending
+
+### Review status
+
+- PR #52: merged by owner authorization; independent subagent review was
+  conducted for the #24 CRITICAL-fix cycle (empty-string evidence_refs bypass)
+- PR #53: subagent review requested (different model identity pending
+  verification; per AGENTS.md §8 exception, may require per-PR owner note)
+- PR #54: subagent review requested (same as #53)
+- PR #55: subagent review requested (same as #53)
+
+**Open question:** If the subagent's underlying model identity cannot be
+verified as distinct from the author (gpt-6-astra), the AGENTS.md §8 exception
+requires a per-PR owner note in chat for cross-model review certification.
+This applies to PRs #53, #54, and #55.
+
+AI-Model: gpt-6-astra (exact deployed version unavailable)
+AI-Provider: OpenAI
+AI-Tool: pool
+AI-Role: Author
