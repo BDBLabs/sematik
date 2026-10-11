@@ -1,8 +1,8 @@
 """sematik web API — FastAPI backend wrapping the semantic conversion engine.
 
 Exposes the full §73 lifecycle: profile -> hypothesis -> compile -> execute ->
-reconcile -> entropy -> lineage -> manifest.  Deployed to Railway; frontend
-served from the same container via static mount.
+reconcile -> entropy -> lineage -> manifest.  Deployed to Vercel; frontend
+served from the same domain via static CDN + Python serverless function.
 
 Run locally:  uvicorn api.main:app --reload --port 8000
 """

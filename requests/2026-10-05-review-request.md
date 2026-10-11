@@ -330,3 +330,110 @@ AI-Model: gpt-6-astra (exact deployed version unavailable)
 AI-Provider: OpenAI
 AI-Tool: pool
 AI-Role: Author
+
+---
+
+## Production deployment — web UI + API + Vercel
+
+**Date:** 2026-10-10 (post-review, deployment phase)
+**Current main:** `48a3305` (196 passed)
+**Live URL:** https://sematik.vercel.app
+
+### Summary
+
+The sematik engine has been deployed to production as a full-stack web
+service with a React UI for interactive testing. The full §73 lifecycle
+(discovery → hypothesis → compile → execute → reconcile → entropy →
+manifest) is now accessible via REST API endpoints, with a SPA frontend
+consuming those endpoints.
+
+### What changed
+
+#### Backend (`api/main.py` — merged to `main` at `48a3305`)
+
+FastAPI app wrapping all lifecycle stages. Each endpoint maps to a spec
+section:
+
+| Endpoint | Method | § | Function |
+|---|---|---|---|
+| `/api/v1/health` | GET | — | Service health |
+| `/api/v1/fixture/{name}` | GET | §58 | Load demo fixtures |
+| `/api/v1/profile` | POST | §14 | Column profiling |
+| `/api/v1/hypotheses` | POST | §59 | Discovery hypotheses |
+| `/api/v1/candidates` | POST | §12 | FK candidate detection |
+| `/api/v1/mapping/digest` | POST | §13 | Approval validation |
+| `/api/v1/compile` | POST | §19 | Python plan compilation |
+| `/api/v1/compile-sql` | POST | §19 | SQL SELECT lowering |
+| `/api/v1/execute` | POST | §29 | Full conversion pipeline |
+| `/api/v1/reconcile/population` | POST | §30 | Population balance |
+| `/api/v1/reconcile/records` | POST | §30 | Record reconciliation |
+| `/api/v1/reconcile/semantic` | POST | §30 | Semantic reconciliation |
+| `/api/v1/entropy/concept` | POST | §76 | Concept entropy |
+| `/api/v1/entropy/semantic` | POST | §76 | Semantic entropy |
+| `/api/v1/entropy/semantic-flagged` | POST | §76 | Semantic entropy + warnings |
+
+**Hardening applied (from #36/#37 review follow-ups):**
+- `Body(...)` on scalar params in `compile_sql`, `reconcile_population`,
+  `reconcile_records` — previously FastAPI treated them as query params,
+  causing 422 on POST bodies.
+- `ValueError` caught in entropy endpoints — `SemanticHypothesis.__post_init__`
+  now raises `ValueError` for uncalibrated hypotheses with empty
+  `evidence_basis`; entropy endpoints catch both `ValueError` and
+  `UncalibratedConfidence`.
+- `Mapping.approval_problems()` enforces `evidence_refs`,
+  `blocking_question_ids`, `golden_plan_digest` (from #24, already on main).
+- SQL comment injection blocked via `_sanitize_for_comment()` (from #30).
+- `_to_step()` in API coerces JSON dicts to `PlanStep` via the same
+  normalization path used by the compiler, including `_validate_step()`.
+
+#### Tests (`tests/test_api.py` — merged to `main` at `48a3305`)
+
+22 TestClient-based tests covering all endpoints:
+
+- Health + fixtures (2)
+- Discovery: profile, hypotheses (uncalibrated check), candidates (3)
+- Compilation: Python plan, SQL, refusal of `code_translate`, unapproved
+  mapping, unknown dialect, SQL comment injection blocked (6)
+- Execution: full lifecycle (3 converted, 1 rejected), int preservation
+  (#31), golden-gate blocking (3)
+- Reconciliation: population balance (1)
+- Entropy: calibrated computation, uncalibrated refusal, flagged fallback (3)
+- Data integrity: manifest hash stability, exception structure (4)
+
+**Validation:** `python3 -m pytest tests -q` → **196 passed** (174 existing
++ 22 new API tests). Ruff: all checks passed.
+
+#### Frontend (`ui/` — on PR #57)
+
+React 18 + Vite SPA with 8 tabs:
+
+- **DataUpload** — paste JSON rows or load demo fixtures
+- **Profiler** — column profiling with discovery hypotheses table
+- **MappingEditor** — 7-level mapping editor (§13) with approval checks
+- **Compiler** — compile to Python plan + SQL SELECT (§19)
+- **Executor** — run conversion, view lineage/manifest/golden-gate (§29)
+- **Reconciler** — population reconciliation with balance check (§30)
+- **Entropy** — concept + semantic entropy with warning display (§76)
+- **FK Candidates** — heuristic FK relationship detection (§12)
+
+Vite proxy configured for local dev (`localhost:5173 → localhost:8000`).
+
+#### Deployment
+
+- **Dockerfile** — multi-stage: `node:20-alpine` builds UI → `python:3.12-slim`
+  serves both via uvicorn. Healthcheck on `/api/v1/health`.
+- **railway.json** — Railway Docker config (trial expired; Vercel used instead).
+- **vercel.json** — Vercel config: `buildCommand` installs Python deps +
+  builds UI; Python serverless function auto-detected from `api/main.py`.
+- **Live:** https://sematik.vercel.app — verified all endpoints working.
+
+#### Known limitations
+
+- Vercel serverless function has cold starts (~3-5s on first request per
+  region); subsequent requests are fast.
+- Docker not tested locally (no Docker daemon available); designed for
+  Azure/Railway Docker fallback.
+- Vercel Hobby plan doesn't support GitHub auto-deploy for org-owned private
+  repos; manual deploy from CLI used instead.
+- `Mapping` dataclass is not frozen (pre-existing, noted in prior review);
+  runtime validation is enforced by `approval_problems()` defense-in-depth.
