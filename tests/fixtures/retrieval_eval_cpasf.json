@@ -1,0 +1,41 @@
+{
+  "meta": {
+    "status": "PROVISIONAL",
+    "authored_by": "Claude Sonnet 5.5 (AI), 2026-10-11, from general assessor-domain knowledge",
+    "review_required": "Every label below is a domain judgment that has NOT been reviewed by a subject-matter expert. Cases and glossary were written by the same author before any metric was computed; results demonstrate the harness and relative effects, not retrieval quality on real agency schemas.",
+    "corpus": "cpasf_pack().canonical_concepts (11 concepts)",
+    "convention": "empty relevant list = no concept applies; correct behavior is to abstain"
+  },
+  "cases": [
+    {"id": "c01", "query": "AV_LND_01", "relevant": ["Valuation"], "tags": ["abbreviation"]},
+    {"id": "c02", "query": "LAND_ASSD_VAL", "relevant": ["Valuation"], "tags": ["abbreviation"]},
+    {"id": "c03", "query": "IMPR_VAL", "relevant": ["Valuation"], "tags": ["abbreviation"]},
+    {"id": "c04", "query": "LandAssessedValue", "relevant": ["Valuation"], "tags": ["camel"]},
+    {"id": "c05", "query": "BASE_YR_VAL", "relevant": ["BaseYearComponent"], "tags": ["abbreviation", "hard-negative"], "notes": "confusable with Valuation"},
+    {"id": "c06", "query": "BASE_VAL", "relevant": ["BaseYearComponent"], "tags": ["abbreviation", "hard-negative"], "notes": "confusable with Valuation"},
+    {"id": "c07", "query": "PROP13_BASE_AMT", "relevant": ["BaseYearComponent"], "tags": ["abbreviation"]},
+    {"id": "c08", "query": "EXMP_HOMEOWNER_AMT", "relevant": ["Exemption"], "tags": ["abbreviation"]},
+    {"id": "c09", "query": "HO_EXEMPTION", "relevant": ["Exemption"], "tags": ["abbreviation"]},
+    {"id": "c10", "query": "XFER_DT", "relevant": ["Transfer"], "tags": ["abbreviation"]},
+    {"id": "c11", "query": "OWNERSHIP_CHG_DATE", "relevant": ["Transfer"], "tags": ["abbreviation"]},
+    {"id": "c12", "query": "COO_DATE", "relevant": ["Transfer"], "tags": ["abbreviation"]},
+    {"id": "c13", "query": "APPEAL_STATUS", "relevant": ["Appeal"], "tags": ["descriptive"]},
+    {"id": "c14", "query": "ASMT_APL_NO", "relevant": ["Appeal"], "tags": ["abbreviation", "hard-negative"], "notes": "ASMT is confusable with Assessment"},
+    {"id": "c15", "query": "CORR_ROLL_YR", "relevant": ["Correction"], "tags": ["abbreviation", "hard-negative"], "notes": "ROLL is confusable with RollTransaction"},
+    {"id": "c16", "query": "SUPP_ROLL_TXN", "relevant": ["RollTransaction"], "tags": ["abbreviation"]},
+    {"id": "c17", "query": "ESCAPE_ASSMT_FLG", "relevant": ["RollTransaction"], "tags": ["abbreviation", "hard-negative"], "notes": "ASSMT is confusable with Assessment"},
+    {"id": "c18", "query": "ASMT_TOTAL", "relevant": ["Assessment"], "tags": ["abbreviation"]},
+    {"id": "c19", "query": "TAXABLE_VALUE", "relevant": ["Assessment"], "tags": ["descriptive", "hard-negative"], "notes": "confusable with Exemption and BaseYearComponent"},
+    {"id": "c20", "query": "APN", "relevant": ["Property"], "tags": ["abbreviation"]},
+    {"id": "c21", "query": "PARCEL_NO", "relevant": ["Property"], "tags": ["descriptive"]},
+    {"id": "c22", "query": "UNDIVIDED_INTEREST_PCT", "relevant": ["PropertyInterest"], "tags": ["descriptive"]},
+    {"id": "c23", "query": "OWNER_INTEREST_PCT", "relevant": ["PropertyInterest"], "tags": ["abbreviation"]},
+    {"id": "c24", "query": "SUPPORTING_DOC_REF", "relevant": ["ValuationEvidence"], "tags": ["abbreviation"]},
+    {"id": "c25", "query": "APPRAISAL_EVIDENCE_DOC", "relevant": ["ValuationEvidence"], "tags": ["descriptive"]},
+    {"id": "u01", "query": "OWNER_PHONE", "relevant": [], "tags": ["unanswerable"]},
+    {"id": "u02", "query": "MAILING_ADDR_LINE2", "relevant": [], "tags": ["unanswerable"]},
+    {"id": "u03", "query": "RECORD_LOCK_FLAG", "relevant": [], "tags": ["unanswerable"]},
+    {"id": "u04", "query": "UI_THEME", "relevant": [], "tags": ["unanswerable"]},
+    {"id": "u05", "query": "LAST_CHANGE_DATE", "relevant": [], "tags": ["unanswerable", "lexical-coincidence"], "notes": "'change' appears in the Transfer definition; a lexical coincidence a retriever should not be trusted on"}
+  ]
+}
