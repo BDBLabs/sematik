@@ -1,6 +1,6 @@
 // src/components/Executor.tsx
 import React, { useState } from "react";
-import { executePlan } from "../api";
+import { executePlan, exportCsv, exportJson } from "../api";
 import type { MappingIn, StepIn, Row } from "../api";
 
 interface Props {
@@ -87,6 +87,23 @@ export default function Executor({ mapping, steps, rows, result, setResult }: Pr
             <div><span className="text-2xl font-bold text-slate-300">{result.total}</span><div className="text-xs text-slate-400">Total</div></div>
             <div><span className="text-2xl font-bold text-cyan-400">{result.manifest_hash?.slice(0, 12)}</span><div className="text-xs text-slate-400">Manifest</div></div>
           </div>
+
+          {result.outputs?.length > 0 && (
+            <div className="flex gap-2">
+              <button
+                onClick={() => exportCsv(result.outputs, "sematik_converted.csv")}
+                className="px-3 py-1 bg-green-600 rounded hover:bg-green-700 text-sm"
+              >
+                Download CSV
+              </button>
+              <button
+                onClick={() => exportJson(result.outputs, "sematik_converted.json")}
+                className="px-3 py-1 bg-green-600 rounded hover:bg-green-700 text-sm"
+              >
+                Download JSON
+              </button>
+            </div>
+          )}
 
           {result.exceptions?.length > 0 && (
             <div className="space-y-1">

@@ -53,6 +53,32 @@ export const executePlan = (payload: { mapping: MappingIn; steps: StepIn[]; rows
   api<Record<string, unknown>>("/api/v1/execute", payload);
 export const popRecon = (rows: Row[], outputs: Row[], sk: string, tk: string) =>
   api<Record<string, unknown>>("/api/v1/reconcile/population", { rows, outputs, source_key: sk, target_key: tk });
+export const recRecon = (rows: Row[], outputs: Row[], sk: string, tk: string, numericPairs: [string, string][]) =>
+  api<Record<string, unknown>>("/api/v1/reconcile/records", { rows, outputs, source_key: sk, target_key: tk, numeric_pairs: numericPairs });
+export const exportCsv = (rows: Row[], filename: string) => {
+  const cols = [...new Set(rows.flatMap((r) => Object.keys(r)))];
+  const lines = [
+    cols.join(","),
+    ...rows.map((r) => cols.map((c) => {
+      const v = r[c];
+      const s = v === null || v === undefined ? "" : String(v);
+      return s.includes(",") || s.includes('"') || s.includes("\n")
+        ? `"${s.replace(/"/g, '""')}"` : s;
+    }).join(",")),
+  ];
+  const blob = new Blob([lines.join("\n")], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename;
+  a.click(); URL.revokeObjectURL(url);
+};
+export const exportJson = (data: unknown, filename: string) => {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename;
+  a.click(); URL.revokeObjectURL(url);
+};
 export const conceptEntropy = (hyps: any[]) =>
   api<{ entropy: number } | { detail: string }>("/api/v1/entropy/concept", hyps);
 export const semanticEntropy = (hyps: any[]) =>
