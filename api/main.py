@@ -11,7 +11,16 @@ from __future__ import annotations
 
 import json
 import pathlib
+import sys
 from typing import Any
+
+# Ensure src/ is on sys.path when running under Vercel's Python serverless
+try:
+    _src = pathlib.Path(__file__).resolve().parent.parent / "src"
+    if str(_src) not in sys.path:
+        sys.path.insert(0, str(_src))
+except Exception:  # pragma: no cover
+    pass
 
 from fastapi import Body, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -517,4 +526,4 @@ def fixture_demo_steps() -> list[dict[str, Any]]:
 
 UI_STATIC = pathlib.Path(__file__).resolve().parent.parent / "ui" / "dist"
 if UI_STATIC.exists():
-    app.mount("/", StaticFiles(directory=str(UI_STATIC), html=True), name="ui")
+    app.mount("/", StaticFiles(directory=str(UI_STATIC), html=True, check_dir=False), name="ui")

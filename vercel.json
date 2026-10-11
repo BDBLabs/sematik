@@ -1,0 +1,3 @@
+{
+  "buildCommand": "pip install '.[api]' && npm --prefix ui ci && npm --prefix ui run build"
+}
