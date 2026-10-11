@@ -149,8 +149,9 @@ class SemanticHypothesis:
         if not self.confidence.calibrated and not self.evidence_basis.strip():
             raise ValueError(
                 f"uncalibrated hypothesis for concept {self.concept!r} "
-                f"must specify evidence_basis (use Confidence.from_evidence_strength "
-                f"with a non-empty evidence_basis argument)")
+                f"must specify a non-empty evidence_basis field; "
+                f"pair Confidence.from_evidence_strength() with "
+                f"SemanticHypothesis(evidence_basis=...) (#36)")
 
 
 @dataclass
