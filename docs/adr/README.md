@@ -10,3 +10,4 @@ supersede by adding a new one.
 - ADR-0005: Embeddings are Discovery-plane evidence; NVIDIA is a pluggable provider
 - ADR-0006: Evidence Retrieval and Semantic Investigation contract
 - ADR-0007: Shadow portable CI (Dagger + Woodpecker) [Proposed]
+- ADR-0008: Control store and approval records [Proposed]
