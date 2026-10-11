@@ -1,0 +1,16 @@
+{
+  "name": "sematik",
+  "services": [
+    {
+      "type": "web",
+      "name": "web",
+      "dockerfilePath": "Dockerfile",
+      "build": {
+        "dockerfilePath": "Dockerfile",
+        "context": "."
+      },
+      "healthCheckPath": "/api/v1/health",
+      "autoDeploy": true
+    }
+  ]
+}

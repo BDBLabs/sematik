@@ -7,10 +7,11 @@ name = "sematik"
 version = "0.0.1"
 description = "Semantic Conversion Engine — meaning-based data conversion over SIR"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = ["fastapi>=0.110", "uvicorn>=0.29", "python-multipart>=0.0"]
 
 [project.optional-dependencies]
 dev = ["pytest", "ruff"]
+api = ["fastapi>=0.110", "uvicorn>=0.29", "python-multipart>=0.0"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/sematik"]
