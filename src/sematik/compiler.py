@@ -108,9 +108,14 @@ class TransformationPlan:
 
     def digest(self) -> str:
         """Content digest over everything that determines behavior and the
-        approval the plan was compiled under (full SHA-256)."""
+        approval the plan was compiled under (full SHA-256).
+
+        Content only (I-13, spec §22/§69): ``mapping_id`` is a generated
+        identifier and is deliberately excluded, otherwise identical inputs
+        would yield a different manifest hash in every process. Instance
+        binding is still enforced at run time by :meth:`bound_to`."""
         payload = json.dumps({
-            "mapping_id": self.mapping_id, "mapping_digest": self.mapping_digest,
+            "mapping_digest": self.mapping_digest,
             "target": self.target_artifact,
             "steps": [{"op": s.op, "args": _canon(s.args)} for s in self.steps],
             "approved_by": self.approved_by, "approval_ref": self.approval_ref,
