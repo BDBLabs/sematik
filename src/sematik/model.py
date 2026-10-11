@@ -137,6 +137,22 @@ class SemanticHypothesis:
     proposed_mapping: str = ""
     id: str = field(default_factory=lambda: "hyp_" + uuid.uuid4().hex[:12])
 
+    def __post_init__(self) -> None:
+        """Every hypothesis must name what produced it (#36 acceptance:
+        no numeric confidence without a stated basis).
+
+        Uncalibrated hypotheses — i.e. those whose confidence is a heuristic
+        midpoint rather than a calibrated probability — must carry a
+        non-empty ``evidence_basis``.  Calibrated hypotheses are recommended
+        to provide one but are not required (e.g. test fixtures may omit it).
+        """
+        if not self.confidence.calibrated and not self.evidence_basis.strip():
+            raise ValueError(
+                f"uncalibrated hypothesis for concept {self.concept!r} "
+                f"must specify a non-empty evidence_basis field; "
+                f"pair Confidence.from_evidence_strength() with "
+                f"SemanticHypothesis(evidence_basis=...) (#36)")
+
 
 @dataclass
 class SemanticQuestion:

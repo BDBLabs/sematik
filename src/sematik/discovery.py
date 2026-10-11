@@ -43,12 +43,22 @@ def shannon_entropy(values: Iterable[Any]) -> float:
 
 
 def candidate_relationships(tables: dict[str, list[dict[str, Any]]],
-                            *, overlap_threshold: float = 0.9) -> list[dict[str, Any]]:
+                            *, overlap_threshold: float = 0.9,
+                            min_cardinality: int = 3) -> list[dict[str, Any]]:
     """Heuristic FK-like discovery (spec §12): for every pair of columns in
     different tables, count the fraction of distinct values in the smaller
     side that appear in the larger side. It is a *candidate* relationship —
     confidence-tagged, evidence-backed, never authoritative — because databases
-    routinely reuse values that do not imply FKs."""
+    routinely reuse values that do not imply FKs.
+
+    ``min_cardinality`` guards against spurious candidates between
+    low-cardinality columns (e.g. booleans, flags, status codes) whose values
+    trivially overlap by chance (#37).  Both sides must have at least this
+    many distinct values for a candidate to be emitted.
+
+    Confidence is emitted as a :class:`Confidence` via
+    ``from_evidence_strength`` — ordinal, uncalibrated, never a bare number
+    (#36)."""
     columns: list[tuple[str, str, set]] = []
     for table, rows in tables.items():
         keys = {k for r in rows for k in r.keys()}
@@ -62,12 +72,23 @@ def candidate_relationships(tables: dict[str, list[dict[str, Any]]],
             if t1 == t2:
                 continue
             smaller, larger = (v1, v2) if len(v1) <= len(v2) else (v2, v1)
+            # Skip low-cardinality spurious candidates (#37)
+            if len(smaller) < min_cardinality:
+                continue
             overlap = len(smaller & larger) / max(len(smaller), 1)
             if overlap >= overlap_threshold and smaller:
+                # Overlap is already >= 0.9 (the threshold); strong at >= 0.95,
+                # moderate otherwise (#36 ordinal evidence strength).
+                strength = "strong" if overlap >= 0.95 else "moderate"
+                confidence = Confidence.from_evidence_strength(
+                    strength, ("value_overlap", "distinct_count"))
                 out.append({"from": [t1, k1] if len(v1) <= len(v2) else [t2, k2],
                             "to": [t2, k2] if len(v1) <= len(v2) else [t1, k1],
                             "overlap": round(overlap, 3),
-                            "confidence": round(0.4 + 0.5 * overlap, 3),
+                            "confidence": confidence,
+                            "evidence_basis": f"heuristic: value-overlap={overlap:.3f} "
+                                              f"(≥{min_cardinality} distinct values on "
+                                              f"smaller side)",
                             "note": "candidate only — requires evidence from code/docs/SME"})
     return out
 

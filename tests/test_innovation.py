@@ -25,6 +25,7 @@ def _uncalibrated(concept, conf, records=10):
     return SemanticHypothesis(candidate_meaning="x", concept=concept,
                               confidence=Confidence.from_evidence_strength(
                                   "moderate", ("test",)),
+                              evidence_basis="test fixture: uncalibrated",
                               affected_records=records)
 
 
