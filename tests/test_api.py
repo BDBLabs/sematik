@@ -137,15 +137,27 @@ def test_compile_python_plan():
 def test_compile_sql():
     m = client.get("/api/v1/fixture/demo-mapping").json()
     steps = client.get("/api/v1/fixture/demo-steps").json()
-    safe_steps = [s for s in steps if s["op"] in ("copy", "derive_sum")]
+    lowerable = [s for s in steps if s["op"] == "copy"]
     r = client.post("/api/v1/compile-sql",
-                    json={"mapping": m, "steps": safe_steps,
+                    json={"mapping": m, "steps": lowerable,
                           "source_table": "legacy_parcel"})
     assert r.status_code == 200
     sql = r.json()["sql"]
-    assert '"total_assessed"' in sql
     assert '"APN" AS "apn"' in sql
     assert 'FROM "legacy_parcel"' in sql
+
+
+def test_compile_sql_refuses_derive_sum():
+    """derive_sum has no safe SQL lowering (I-14): executed equivalence tests
+    showed NULL and text components diverge from the Python backend."""
+    m = client.get("/api/v1/fixture/demo-mapping").json()
+    steps = client.get("/api/v1/fixture/demo-steps").json()
+    ds = [s for s in steps if s["op"] == "derive_sum"]
+    assert ds, "demo fixture should contain a derive_sum step"
+    r = client.post("/api/v1/compile-sql",
+                    json={"mapping": m, "steps": ds, "source_table": "legacy_parcel"})
+    assert r.status_code == 400
+    assert "derive_sum" in r.json()["detail"]
 
 
 def test_compile_sql_refuses_code_translate():

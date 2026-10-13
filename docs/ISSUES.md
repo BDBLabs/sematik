@@ -42,6 +42,14 @@ guarantees are implemented as checks on values supplied by the party being gover
   - Python rejects a None component; emitted SQL (a + b) returns NULL silently.
   - Numeric strings parse in Python; PostgreSQL + on text errors.
   - Add a differential test running every op both ways, including NULLs.
+  - STATUS (branch fix/sql-lowering-parity-i14): derive_sum lowering now refused;
+    only copy/rename lower. Executed on SQLite, 3 of 5 sample rows diverged (NULL
+    component -> NULL; 'abc' + 2 -> 2, a silent wrong value; both rejected by Python).
+    tests/test_sql_python_equivalence.py runs emitted SQL against the Python backend
+    and fails if an op is lowered without a differential test. PostgreSQL behavior
+    above is from its documented semantics, not executed here.
+  - FOLLOW-UP: re-enable derive_sum only with a typed source schema (NOT NULL,
+    exact/finite numeric) bound to the approval record (see ADR-0008).
 - I-15 Seven mapping levels are not executable (§13, §24, §86)
   - Levels 4-6 (context, temporal, authority) are free text; nothing checks that plan
     steps implement them. Ops are only copy/rename/derive_sum/code_translate/
