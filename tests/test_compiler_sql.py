@@ -24,11 +24,14 @@ def _approved():
 
 
 def test_sql_lowering_emits_value_preserving_steps():
-    steps = [PlanStep("derive_sum", {"parts": ["LNDVAL", "AV_IMP"], "to": "total_assessed"}),
+    """Only copy/rename lower (I-14). Behavioral equivalence with the Python
+    backend is asserted by execution in test_sql_python_equivalence.py; this
+    test only pins the emitted shape."""
+    steps = [PlanStep("rename", {"from": "LNDVAL", "to": "land_value"}),
              PlanStep("copy", {"from": "APN", "to": "apn"})]
     sql = compile_mapping_to_sql(_approved(), steps, source_table="parcls")
     assert sql.startswith("-- compiled from mapping")
-    assert '("LNDVAL" + "AV_IMP") AS "total_assessed"' in sql
+    assert '"LNDVAL" AS "land_value"' in sql
     assert '"APN" AS "apn"' in sql
     assert 'FROM "parcls"' in sql
 
@@ -67,10 +70,10 @@ def test_quote_ident_rejects_unsupported_dialect():
 def test_sql_lowering_quotes_all_identifiers():
     """Every identifier in the generated SQL must be double-quoted (#30)."""
     steps = [PlanStep("copy", {"from": "col with space", "to": "select"}),
-             PlanStep("derive_sum", {"parts": ["val-1", "val 2"], "to": "total$amt"})]
+             PlanStep("rename", {"from": "val-1", "to": "total$amt"})]
     sql = compile_mapping_to_sql(_approved(), steps, source_table="my table")
     assert '"col with space" AS "select"' in sql
-    assert '("val-1" + "val 2") AS "total$amt"' in sql
+    assert '"val-1" AS "total$amt"' in sql
     assert 'FROM "my table"' in sql
 
 
@@ -105,9 +108,11 @@ def test_quote_literal_rejects_non_string():
 
 # ---- #30: cross-target equivalence (Python vs SQL) ------------------------
 
-def test_python_and_sql_targets_agree_on_mapped_case():
-    """For copy + derive_sum with integer inputs, both targets produce
-    the same converted values (#30 acceptance criterion)."""
+def test_derive_sum_converts_in_python_and_is_refused_in_sql():
+    """The Python backend sums exactly (int preserved); the SQL backend refuses
+    derive_sum (I-14) because ``+`` cannot reproduce Python's rejections.
+    Executed Python-vs-SQL comparisons live in test_sql_python_equivalence.py
+    (this test used to compare SQL *substrings*, which proved nothing)."""
     steps = [PlanStep("copy", {"from": "APN", "to": "apn"}),
              PlanStep("derive_sum", {"parts": ["LNDVAL", "AV_IMP"], "to": "total_assessed"})]
     m = _approved()
@@ -119,9 +124,8 @@ def test_python_and_sql_targets_agree_on_mapped_case():
         provenance_of=lambda r: Provenance(source_system="s", source_record=str(r["_id"])))
     assert run.converted == 1
     assert run.outputs[0]["total_assessed"] == 150     # int preserved
-    sql = compile_mapping_to_sql(m, steps, source_table="src")
-    assert '"LNDVAL" + "AV_IMP"' in sql               # same column refs
-    assert '"total_assessed"' in sql                  # same target
+    with pytest.raises(CompilationError, match="no SQL lowering for derive_sum"):
+        compile_mapping_to_sql(m, steps, source_table="src")
 
 
 def test_python_and_sql_targets_agree_on_unmapped_case():
@@ -154,6 +158,7 @@ def test_sql_lowering_requires_approval():
     ("code_translate", {"from": "XFER", "to": "transfer_kind",
                         "table": {"REG": "regular", "PT": "partial"}}),
     ("assert_not_null", {"field": "APN"}),
+    ("derive_sum", {"parts": ["LNDVAL", "AV_IMP"], "to": "total_assessed"}),
 ])
 def test_sql_lowering_refuses_divergent_ops(op, args):
     """Refusal rationale: Python rejects unknown codes and null rows as

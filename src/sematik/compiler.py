@@ -352,9 +352,11 @@ def compile_mapping_to_sql(mapping: Mapping, steps: list[PlanStep], *,
     a *read-only* compilation of the mapping — traceability is preserved by
     embedding the mapping digest.
 
-    Fail-closed (spec §68, issue #30): ops whose Python failure semantics
-    cannot be preserved in a single SELECT are refused rather than silently
-    weakened.  Only value-preserving lowering is emitted.  All identifiers
+    Fail-closed (spec §68, issues #30, I-14): ops whose Python failure
+    semantics cannot be preserved in a single SELECT are refused rather than
+    silently weakened.  Only ``copy`` and ``rename`` are lowered; every
+    lowered op must have an executed equivalence test
+    (tests/test_sql_python_equivalence.py).  All identifiers
     (column names, target aliases, table names) are safely quoted via
     ``quote_ident`` — names containing reserved words, spaces, or special
     characters are handled correctly.  Metadata embedded in SQL single-line
@@ -378,9 +380,18 @@ def compile_mapping_to_sql(mapping: Mapping, steps: list[PlanStep], *,
             dst = quote_ident(step.args["to"], dialect)
             select_exprs.append(f"{src} AS {dst}")
         elif step.op == "derive_sum":
-            parts = " + ".join(quote_ident(p, dialect) for p in step.args["parts"])
-            dst = quote_ident(step.args["to"], dialect)
-            select_exprs.append(f"({parts}) AS {dst}")
+            # Verified by execution on SQLite (tests/test_sql_python_equivalence.py):
+            # Python rejects a record whose component is NULL, non-numeric or
+            # non-finite, but ("a" + "b") returns NULL for a NULL component and
+            # silently coerces text ('abc' + 2 -> 2). Whether a Decimal sum stays
+            # exact also depends on column types the compiler does not know (#31).
+            # Re-enabling needs a typed source schema bound to the approval.
+            raise CompilationError(
+                f"no SQL lowering for derive_sum into {step.args['to']!r}: "
+                "Python rejects NULL, non-numeric and non-finite components as "
+                "explicit exceptions (spec §68) but SQL '+' yields NULL or "
+                "silently coerces text, and Decimal exactness depends on column "
+                "types; refusing rather than weakening failure semantics (I-14)")
         elif step.op == "code_translate":
             raise CompilationError(
                 f"no SQL lowering for code_translate on {step.args['from']!r}: "

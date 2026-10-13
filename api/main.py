@@ -310,8 +310,9 @@ def compile_sql(mapping: MappingIn, steps: list[StepIn],
                 dialect: str = Body("postgres")) -> dict[str, Any]:
     """Lower a plan to an equivalent SQL SELECT (spec §19, issue #30).
 
-    Fail-closed: ``code_translate`` and ``assert_not_null`` have no safe
-    single-SELECT lowering and are refused.  SQL comment fields are
+    Fail-closed: ``derive_sum``, ``code_translate`` and ``assert_not_null``
+    have no safe single-SELECT lowering and are refused (only ``copy`` and
+    ``rename`` lower; see I-14).  SQL comment fields are
     sanitized to prevent injection (#30 HIGH follow-up)."""
     m = _to_mapping(mapping)
     try:
