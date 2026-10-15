@@ -378,9 +378,11 @@ def compile_mapping_to_sql(mapping: Mapping, steps: list[PlanStep], *,
             dst = quote_ident(step.args["to"], dialect)
             select_exprs.append(f"{src} AS {dst}")
         elif step.op == "derive_sum":
-            parts = " + ".join(quote_ident(p, dialect) for p in step.args["parts"])
-            dst = quote_ident(step.args["to"], dialect)
-            select_exprs.append(f"({parts}) AS {dst}")
+            raise CompilationError(
+                f"no SQL lowering for derive_sum on {step.args['to']!r}: "
+                "Python rejects missing/None components as explicit exceptions; "
+                "SQL (a + b) silently returns NULL for any NULL operand; "
+                "refusing rather than weakening failure semantics (#30)")
         elif step.op == "code_translate":
             raise CompilationError(
                 f"no SQL lowering for code_translate on {step.args['from']!r}: "

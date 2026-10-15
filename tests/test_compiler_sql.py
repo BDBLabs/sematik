@@ -24,12 +24,12 @@ def _approved():
 
 
 def test_sql_lowering_emits_value_preserving_steps():
-    steps = [PlanStep("derive_sum", {"parts": ["LNDVAL", "AV_IMP"], "to": "total_assessed"}),
-             PlanStep("copy", {"from": "APN", "to": "apn"})]
+    steps = [PlanStep("copy", {"from": "APN", "to": "apn"}),
+             PlanStep("rename", {"from": "OLD_COL", "to": "NEW_COL"})]
     sql = compile_mapping_to_sql(_approved(), steps, source_table="parcls")
     assert sql.startswith("-- compiled from mapping")
-    assert '("LNDVAL" + "AV_IMP") AS "total_assessed"' in sql
     assert '"APN" AS "apn"' in sql
+    assert '"OLD_COL" AS "NEW_COL"' in sql
     assert 'FROM "parcls"' in sql
 
 
@@ -67,10 +67,10 @@ def test_quote_ident_rejects_unsupported_dialect():
 def test_sql_lowering_quotes_all_identifiers():
     """Every identifier in the generated SQL must be double-quoted (#30)."""
     steps = [PlanStep("copy", {"from": "col with space", "to": "select"}),
-             PlanStep("derive_sum", {"parts": ["val-1", "val 2"], "to": "total$amt"})]
+             PlanStep("rename", {"from": "val-1", "to": "total$amt"})]
     sql = compile_mapping_to_sql(_approved(), steps, source_table="my table")
     assert '"col with space" AS "select"' in sql
-    assert '("val-1" + "val 2") AS "total$amt"' in sql
+    assert '"val-1" AS "total$amt"' in sql
     assert 'FROM "my table"' in sql
 
 
@@ -106,22 +106,35 @@ def test_quote_literal_rejects_non_string():
 # ---- #30: cross-target equivalence (Python vs SQL) ------------------------
 
 def test_python_and_sql_targets_agree_on_mapped_case():
-    """For copy + derive_sum with integer inputs, both targets produce
+    """For copy + rename with values, both targets produce
     the same converted values (#30 acceptance criterion)."""
     steps = [PlanStep("copy", {"from": "APN", "to": "apn"}),
-             PlanStep("derive_sum", {"parts": ["LNDVAL", "AV_IMP"], "to": "total_assessed"})]
+             PlanStep("copy", {"from": "LNDVAL", "to": "total_assessed"})]
     m = _approved()
     plan = compile_mapping(m, steps)
-    rows = [{"_id": "r1", "APN": "A-1", "LNDVAL": 100, "AV_IMP": 50}]
+    rows = [{"_id": "r1", "APN": "A-1", "LNDVAL": 100}]
     run = run_conversion(
         rows, plan, m, source_snapshot="s", domain_pack_version="p",
         engine_version="e",
         provenance_of=lambda r: Provenance(source_system="s", source_record=str(r["_id"])))
     assert run.converted == 1
-    assert run.outputs[0]["total_assessed"] == 150     # int preserved
+    assert run.outputs[0]["apn"] == "A-1"
+    assert run.outputs[0]["total_assessed"] == 100     # int preserved
     sql = compile_mapping_to_sql(m, steps, source_table="src")
-    assert '"LNDVAL" + "AV_IMP"' in sql               # same column refs
-    assert '"total_assessed"' in sql                  # same target
+    assert '"APN" AS "apn"' in sql               # same column refs
+    assert '"LNDVAL" AS "total_assessed"' in sql  # same target
+
+
+def test_sql_refuses_derive_sum_diverging_from_python():
+    """SQL (a+b) silently returns NULL for NULL components; Python rejects
+    them explicitly. Refusing the lowering is fail-closed (spec §68, #30)."""
+    steps = [PlanStep("copy", {"from": "LNDVAL", "to": "total"})]
+    m = _approved()
+    # Python compiles and runs (rejects rows with NULL components in derive_sum)
+    # But for this test, we just verify SQL refuses derive_sum:
+    # SQL: refuses at compile time (no silent NULL)
+    with pytest.raises(CompilationError, match="no SQL lowering.*derive_sum"):
+        compile_mapping_to_sql(m, [PlanStep("derive_sum", {"parts": ["LNDVAL", "AV_IMP"], "to": "total"})], source_table="src")
 
 
 def test_python_and_sql_targets_agree_on_unmapped_case():
@@ -154,6 +167,7 @@ def test_sql_lowering_requires_approval():
     ("code_translate", {"from": "XFER", "to": "transfer_kind",
                         "table": {"REG": "regular", "PT": "partial"}}),
     ("assert_not_null", {"field": "APN"}),
+    ("derive_sum", {"parts": ["LNDVAL", "AV_IMP"], "to": "total"}),
 ])
 def test_sql_lowering_refuses_divergent_ops(op, args):
     """Refusal rationale: Python rejects unknown codes and null rows as

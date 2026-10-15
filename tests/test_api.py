@@ -135,17 +135,32 @@ def test_compile_python_plan():
 
 
 def test_compile_sql():
+    """verify SQL lowering works for copy-only plans (#30).
+    Note: derive_sum is refused in SQL lowering due to NULL/failure semantics divergence."""
     m = client.get("/api/v1/fixture/demo-mapping").json()
     steps = client.get("/api/v1/fixture/demo-steps").json()
-    safe_steps = [s for s in steps if s["op"] in ("copy", "derive_sum")]
+    # Only copy steps allowed for SQL (derive_sum fails-closed per #30)
+    copy_steps = [s for s in steps if s["op"] == "copy"]
     r = client.post("/api/v1/compile-sql",
-                    json={"mapping": m, "steps": safe_steps,
+                    json={"mapping": m, "steps": copy_steps,
                           "source_table": "legacy_parcel"})
     assert r.status_code == 200
     sql = r.json()["sql"]
-    assert '"total_assessed"' in sql
     assert '"APN" AS "apn"' in sql
     assert 'FROM "legacy_parcel"' in sql
+
+
+def test_compile_sql_refuses_derive_sum():
+    """derive_sum cannot lower to SQL because Python rejects NULL components
+    while SQL (a+b) silently returns NULL (#30, fail-closed, spec §68)."""
+    m = client.get("/api/v1/fixture/demo-mapping").json()
+    steps = client.get("/api/v1/fixture/demo-steps").json()
+    derive_steps = [s for s in steps if s["op"] == "derive_sum"]
+    r = client.post("/api/v1/compile-sql",
+                    json={"mapping": m, "steps": derive_steps,
+                          "source_table": "legacy_parcel"})
+    assert r.status_code == 400
+    assert "derive_sum" in r.json()["detail"]
 
 
 def test_compile_sql_refuses_code_translate():
