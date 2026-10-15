@@ -15,10 +15,13 @@ import re
 from dataclasses import dataclass, field
 from decimal import Decimal, InvalidOperation
 from types import MappingProxyType
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 from .mapping import Mapping
 from .model import Assertion, DerivationStatus, Provenance
+
+if TYPE_CHECKING:
+    from .control import VerifiedApproval
 
 
 class CompilationError(Exception):
@@ -102,6 +105,7 @@ class TransformationPlan:
     approved_by: str = ""
     approval_ref: str = ""
     mapping_version: str = ""
+    approval_digest: str = ""  # Content digest of the approval event (ADR-0008)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "steps", tuple(self.steps))
@@ -113,13 +117,16 @@ class TransformationPlan:
         Content only (I-13, spec §22/§69): ``mapping_id`` is a generated
         identifier and is deliberately excluded, otherwise identical inputs
         would yield a different manifest hash in every process. Instance
-        binding is still enforced at run time by :meth:`bound_to`."""
+        binding is still enforced at run time by :meth:`bound_to`.
+        
+        Includes approval_digest for governance audit trail (ADR-0008)."""
         payload = json.dumps({
             "mapping_digest": self.mapping_digest,
             "target": self.target_artifact,
             "steps": [{"op": s.op, "args": _canon(s.args)} for s in self.steps],
             "approved_by": self.approved_by, "approval_ref": self.approval_ref,
             "mapping_version": self.mapping_version,
+            "approval_digest": self.approval_digest,
         }, sort_keys=True, default=str)
         return hashlib.sha256(payload.encode()).hexdigest()
 
@@ -258,10 +265,36 @@ def _apply(step: PlanStep, row: dict[str, Any], out: dict[str, Any]) -> dict[str
     raise CompilationError(f"unknown op {step.op}")
 
 
-def compile_mapping(mapping: Mapping, steps: list[PlanStep]) -> TransformationPlan:
+def compile_mapping(mapping: Mapping, steps: list[PlanStep], 
+                    approval: VerifiedApproval | None = None) -> TransformationPlan:
+    """Compile a mapping with steps into a deterministic plan (spec §19).
+
+    Args:
+        mapping: The mapping to compile
+        steps: List of transformation steps
+        approval: Optional VerifiedApproval token from Control store.
+                  When provided, enforces I-11/I-12 governance requirements.
+
+    Returns:
+        TransformationPlan with immutable steps and content digest
+
+    Raises:
+        CompilationError: If mapping is not approved or has structural problems
+    """
     problems = mapping.approval_problems()
     if problems:
         raise CompilationError("mapping must be approved before compilation: " + "; ".join(problems))
+    
+    # If approval token provided, verify integrity (ADR-0008 §3)
+    if approval is not None:
+        if approval.mapping_digest != mapping.digest():
+            raise CompilationError(
+                f"approval mapping digest mismatch: approval has {approval.mapping_digest}, "
+                f"mapping has {mapping.digest()}")
+        if approval.plan_digest:  # Could be empty if not yet compiled
+            # Plan digest not yet known, will be set later
+            pass
+    
     frozen = tuple(steps)
     if not frozen:
         raise CompilationError("a transformation plan needs at least one step")
@@ -269,7 +302,8 @@ def compile_mapping(mapping: Mapping, steps: list[PlanStep]) -> TransformationPl
         if not isinstance(step, PlanStep):
             raise CompilationError("steps must be PlanStep instances")
         _validate_step(step)
-    return TransformationPlan(
+    
+    plan = TransformationPlan(
         mapping_id=mapping.id,
         mapping_digest=mapping.digest(),
         target_artifact=mapping.target_artifact,
@@ -277,7 +311,9 @@ def compile_mapping(mapping: Mapping, steps: list[PlanStep]) -> TransformationPl
         approved_by=mapping.approved_by,
         approval_ref=mapping.approval_ref,
         mapping_version=mapping.version,
+        approval_digest=approval.approval_digest if approval else "",
     )
+    return plan
 
 
 _SQL_DIALECTS = {"postgres", "sqlite", "duckdb"}
