@@ -71,6 +71,22 @@ Compiler, runner, golden-record execution and reconciliation are forbidden from
 importing probabilistic Discovery services. Tests enforce this boundary.
 
 See ADR-0006 and docs/SEMANTIC_INVESTIGATION.md.
+
+## Teach Mode and institutional knowledge direction
+
+[ADR-0009](adr/ADR-0009-teach-mode-and-institutional-knowledge.md) records the
+owner-endorsed direction for an interactive apprenticeship with staff, learning
+legacy and successor workflows through one governed evidence foundation. That
+foundation should support both conversion mappings and a lasting institutional
+knowledge portal. Persistent knowledge belongs in a structured, versioned store;
+observations, explanations, inferences, and approvals remain distinct. The guided
+UI and integrations use the API, with authority and validation in the backend.
+
+This is an accepted direction with implementation pending, not a claim that the
+current API console provides Teach Mode or a complete knowledge portal. The ADR
+preserves Discovery/Control/Execution/Assurance boundaries and distinguishes the
+recommended bounded pilot from demonstrated capability.
+
 ## Semantic retrieval and embeddings
 
 Embedding similarity is a **Discovery-plane signal only**. Sematik may use a
@@ -126,3 +142,5 @@ AI-Model: fledge-alpha-free
 AI-Provider: opencode
 AI-Tool: OpenCode
 AI-Role: Author
+
+AI-Contributor: GPT-6 (family exposed; exact variant/version unavailable) | OpenAI | Drafted ADR-0009 architecture cross-reference using Codex desktop
