@@ -52,3 +52,7 @@ different underlying model from the author, its review satisfies the
 independent-review requirement. Where no different model is available, the
 exception requires a per-PR note from the owner in chat. The author does not
 merge a PR until the required review is recorded.
+
+## Portfolio governance baseline
+
+Read and follow [GOVERNANCE_BASELINE.md](GOVERNANCE_BASELINE.md). This supplements existing repository-specific architecture, security, and change-control requirements. Independent cross-model review must be evidenced on the final PR head SHA; metadata CI checks cannot themselves prove an independent review occurred. Human approval remains separate.
