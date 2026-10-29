@@ -2,6 +2,7 @@ import json
 
 import pytest
 
+from sematik.egress import DataClassification, EgressPolicy
 from sematik.embeddings import (
     DEFAULT_NVIDIA_ENDPOINT,
     EmbeddingConfigurationError,
@@ -117,6 +118,9 @@ def test_rank_semantic_candidates_uses_query_and_passage_modes():
         "legacy field stores the assessor's land value",
         concepts,
         provider,
+        egress_policy=EgressPolicy.conservative_government_default(),
+        classification=DataClassification.PUBLIC,
+        purpose="test",
         top_k=2,
     )
 
@@ -135,6 +139,9 @@ def test_similarity_score_is_not_promoted_to_confidence():
         "land value",
         {"land_value": "assessed land value"},
         provider,
+        egress_policy=EgressPolicy.conservative_government_default(),
+        classification=DataClassification.PUBLIC,
+        purpose="test",
         top_k=1,
     )[0]
 

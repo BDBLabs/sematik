@@ -9,14 +9,16 @@ from __future__ import annotations
 
 import hashlib
 import json
-import ipaddress
 import math
 import os
 import urllib.error
 import urllib.request
-from urllib.parse import urlparse
 from dataclasses import dataclass
 from typing import Literal, Protocol, Sequence
+
+from .egress import (DataClassification, EgressDestination, EgressPolicy,
+                     EgressRequest, credential_transport_allowed,
+                     destination_for_endpoint, is_known_hosted_endpoint)
 
 InputType = Literal["query", "passage"]
 
@@ -30,6 +32,10 @@ class EmbeddingError(RuntimeError):
 
 class EmbeddingConfigurationError(EmbeddingError):
     """Raised when an embedding provider is configured unsafely or incompletely."""
+
+
+class EgressDeniedError(EmbeddingError):
+    """Egress policy refused to let this content reach the provider."""
 
 
 class EmbeddingResponseError(EmbeddingError):
@@ -59,23 +65,9 @@ class SemanticSimilarity:
     provider: str
     model: str
     source_digest: str
+    classification: str = ""
+    egress_destination: str = ""
 
-
-
-def credential_transport_allowed(endpoint: str) -> bool:
-    parsed = urlparse(endpoint)
-    if not parsed.hostname:
-        return False
-    if parsed.scheme == "https":
-        return True
-    if parsed.scheme != "http":
-        return False
-    if parsed.hostname == "localhost":
-        return True
-    try:
-        return ipaddress.ip_address(parsed.hostname).is_loopback
-    except ValueError:
-        return False
 
 
 @dataclass
@@ -95,8 +87,18 @@ class NvidiaEmbeddingProvider:
     truncate: Literal["START", "END", "NONE"] = "NONE"
     dimensions: int | None = None
     provider_name: str = "nvidia"
+    # Deployment attestation that the endpoint lies inside the customer-
+    # controlled trust boundary. Never honored for known hosted services.
+    self_hosted: bool = False
+
+    @property
+    def egress_destination(self) -> EgressDestination:
+        return destination_for_endpoint(self.endpoint, attested_self_hosted=self.self_hosted)
 
     def __post_init__(self) -> None:
+        if self.self_hosted and is_known_hosted_endpoint(self.endpoint):
+            raise EmbeddingConfigurationError(
+                "a known third-party hosted endpoint cannot be attested as self-hosted")
         if not self.endpoint.startswith(("https://", "http://")):
             raise EmbeddingConfigurationError("embedding endpoint must be http(s)")
         if not self.model.strip():
@@ -249,6 +251,9 @@ def rank_semantic_candidates(
     concepts: dict[str, str],
     provider: EmbeddingProvider,
     *,
+    egress_policy: EgressPolicy,
+    classification: DataClassification,
+    purpose: str,
     top_k: int = 5,
 ) -> list[SemanticSimilarity]:
     """Rank canonical concepts as Discovery-plane candidates.
@@ -257,14 +262,34 @@ def rank_semantic_candidates(
     definitions as passage inputs. Scores are deliberately returned as raw
     semantic-similarity evidence; callers must not treat them as approval or as
     calibrated Confidence values.
+
+    Egress is fail-closed (ADR-0006 section 8): the policy, the data
+    classification and the purpose are required, and *both* the query text and
+    the concept text must be authorized for the provider's destination before
+    any of it is sent. The destination comes from the provider (derived from
+    its endpoint); a provider that does not declare one is treated as hosted
+    external. Direct calls to ``provider.embed`` bypass this gate.
     """
 
     if not source_description.strip():
         raise ValueError("source_description is required")
     if top_k <= 0:
         raise ValueError("top_k must be positive")
+    if not isinstance(egress_policy, EgressPolicy):
+        raise TypeError("egress_policy must be an EgressPolicy")
+    if not isinstance(classification, DataClassification):
+        raise TypeError("classification must be a DataClassification")
     if not concepts:
         return []
+
+    destination = getattr(provider, "egress_destination", EgressDestination.HOSTED_EXTERNAL)
+    passage_preview = "\n".join(f"{c}: {d}" for c, d in concepts.items())
+    for label, text in (("query", source_description), ("concept passages", passage_preview)):
+        decision = egress_policy.authorize(EgressRequest.from_text(
+            text=text, classification=classification, destination=destination,
+            purpose=purpose))
+        if not decision.allowed:
+            raise EgressDeniedError(f"egress denied for {label}: {decision.reason}")
 
     concept_items = list(concepts.items())
     query_vectors = provider.embed([source_description], input_type="query")
@@ -285,6 +310,8 @@ def rank_semantic_candidates(
             provider=provider.provider_name,
             model=provider.model,
             source_digest=source_digest,
+            classification=classification.value,
+            egress_destination=destination.value,
         )
         for (concept, definition), vector in zip(concept_items, passages)
     ]

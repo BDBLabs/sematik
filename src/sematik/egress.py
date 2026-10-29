@@ -10,12 +10,12 @@ their trust boundary.
 from __future__ import annotations
 
 import hashlib
+import ipaddress
 from dataclasses import dataclass, field
 from enum import Enum
 from types import MappingProxyType
 from typing import Mapping
-
-from .embeddings import credential_transport_allowed
+from urllib.parse import urlparse
 
 
 class DataClassification(str, Enum):
@@ -126,6 +126,18 @@ class EgressPolicy:
         )
 
 
+def credential_transport_allowed(endpoint: str) -> bool:
+    """Credentials may travel over HTTPS or cleartext loopback only."""
+    parsed = urlparse(endpoint)
+    if not parsed.hostname:
+        return False
+    if parsed.scheme == "https":
+        return True
+    if parsed.scheme != "http":
+        return False
+    return _is_loopback(parsed.hostname)
+
+
 def endpoint_allows_credentials(endpoint: str) -> bool:
     """Credentials may use HTTPS or cleartext loopback only.
 
@@ -134,3 +146,41 @@ def endpoint_allows_credentials(endpoint: str) -> bool:
     shared with the embeddings provider (no duplicated transport rule).
     """
     return credential_transport_allowed(endpoint)
+
+
+_KNOWN_HOSTED_SUFFIXES = ("nvidia.com",)
+
+
+def _is_loopback(hostname: str) -> bool:
+    if hostname == "localhost":
+        return True
+    try:
+        return ipaddress.ip_address(hostname).is_loopback
+    except ValueError:
+        return False
+
+
+def is_known_hosted_endpoint(endpoint: str) -> bool:
+    """True for third-party hosted services a deployment cannot attest as its own."""
+    host = (urlparse(endpoint).hostname or "").lower()
+    return any(host == s or host.endswith("." + s) for s in _KNOWN_HOSTED_SUFFIXES)
+
+
+def destination_for_endpoint(endpoint: str, *, attested_self_hosted: bool = False
+                             ) -> EgressDestination:
+    """Derive the egress destination from the endpoint, never from the caller.
+
+    Loopback is LOCAL. Anything else is HOSTED_EXTERNAL unless the deployment
+    owner explicitly attests it lies inside the customer-controlled trust
+    boundary, and a known third-party hosted service can never be attested.
+    Unknown or unattested therefore fails closed to the strictest route.
+    """
+    parsed = urlparse(endpoint)
+    host = (parsed.hostname or "").lower()
+    if not host:
+        return EgressDestination.HOSTED_EXTERNAL   # unparseable: fail closed, whatever is attested
+    if _is_loopback(host):
+        return EgressDestination.LOCAL
+    if attested_self_hosted and not is_known_hosted_endpoint(endpoint):
+        return EgressDestination.SELF_HOSTED
+    return EgressDestination.HOSTED_EXTERNAL
