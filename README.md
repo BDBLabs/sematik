@@ -1,6 +1,14 @@
 # sematik
 
-**Semantic Conversion Engine** — governed, meaning-based data conversion.
+**Institutional knowledge and understanding foundation** — preserve what an
+institution knows, establish what it means, and make that understanding useful
+through evidence, context, human expertise, and governed reuse.
+
+The [foundational product vision](docs/PRODUCT_VISION.md) governs product scope.
+The **Semantic Conversion Engine** is a major application and the current
+implementation focus. [Proposed ADR-0009](docs/adr/ADR-0009-institutional-understanding-foundation.md)
+maps existing components to the broader mission and identifies implementation
+gaps. It does not claim those platform services are already complete.
 
 Instead of `schema → schema`, sematik reasons across:
 

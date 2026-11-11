@@ -2,6 +2,15 @@
 
 Status: draft v0.1 (2026-10-05)
 
+## Product scope clarification
+
+The owner defines Sematik as an institutional knowledge and understanding
+foundation; see [PRODUCT_VISION.md](PRODUCT_VISION.md). The architecture below
+describes the existing conversion-centered design. Proposed
+[ADR-0009](adr/ADR-0009-institutional-understanding-foundation.md) identifies
+reusable foundations, conversion-specific components, governance gaps, and a
+staged extension within the four planes. Existing accepted ADRs remain intact.
+
 ## Planes (spec §67)
 
 - **Discovery plane** — AI-friendly, exploratory: profiles sources, proposes

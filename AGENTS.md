@@ -2,9 +2,16 @@
 
 ## Project mission
 
-Semantic Conversion Engine: meaning-based data conversion through a canonical
-Semantic Intermediate Representation (SIR). Governed migrations, deterministic
-execution, evidence-bound reasoning. See docs/SPEC.md and docs/ARCHITECTURE.md.
+Sematik is the institutional knowledge and understanding foundation for its
+clients. Knowledge is the foundation; understanding is the product. Read
+docs/PRODUCT_VISION.md for the owner's governing product direction.
+
+The Semantic Conversion Engine is a major application of that foundation.
+Preserve working conversion code, SIR, evidence-bound reasoning, deterministic
+execution, and repository governance. Evaluate proposed work for reusable
+semantic, evidence, temporal, expert-learning, and governance capabilities.
+See docs/SPEC.md, docs/ARCHITECTURE.md, and proposed ADR-0009 for reconciliation
+with existing contracts; the product direction does not silently accept ADRs.
 
 ## Policy
 
