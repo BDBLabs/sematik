@@ -43,7 +43,7 @@ This inventory is based on source inspection, not a production readiness audit.
 | `evidence.py`: EvidenceGraph | In-memory nodes/edges with JSON import/export; supports and contradicts relationships. | Durable institutional evidence service with referential integrity, version history, access enforcement and permission-aware traversal. JSON serialization alone is not managed durable storage. |
 | `investigation.py`: InvestigationPacket, EvidenceItem, probes | Competing interpretations, source spans/digests, stance and symmetric probe coverage exist. | Reuse for institutional questions without target mappings. Automating ingestion, retrieval and probes remains separate integration work. |
 | `embeddings.py`, `handbook.py`, `retrieval_eval.py`, `egress.py` | Retrieval, evaluation and egress primitives exist. | Authorized source discovery and evidence retrieval; retrieval results do not constitute understanding. Add consistent permission filtering across indexes, caches and outputs. |
-| `domain_pack.py`, `cpasf_pack.py` | Concepts, code sets, invariants, corpus and golden records exist; code translation and conversion examples coexist. | Keep shared domain definitions versioned; separate optional conversion profiles through compatible interfaces when needed. Client overlays and rights must remain explicit. |
+| `domain_pack.py`, `cpasf_pack.py` | CPASF supplies concepts, code sets, invariants and known patterns. DomainPack also defines corpus and golden-record fields, empty by default. | Keep shared domain definitions versioned; separate optional conversion profiles through compatible interfaces when needed. Client overlays and rights must remain explicit. |
 | `temporal.py`, `identity.py`, `semantic_diff.py` | Temporal coverage/uncertainty helpers, identity and mapping comparison primitives; temporal module explicitly defers full reconstruction. | Governed historical views, durable identity and change impact. Do not claim historical reconstruction from coverage counters. |
 | `questions.py`, ProcessObservation in `investigation.py` | Questions render review requests; process-observation type exists. Teach Mode is described in SEMANTIC_INVESTIGATION.md. | Expert-learning workflow retaining observations and explanations separately. A deployed observer, adjudication lifecycle and complete Teach Mode are not established by these primitives. |
 | `control.py`, `compiler.py`, `api/main.py` | SQLite event store and verifier exist; compiler approval token is optional, API still accepts approval fields from callers. | Candidate governance foundation, with mandatory authenticated and scoped approvals, revocation and reference validation still requiring work. Do not expose client knowledge on the strength of type definitions alone. |
@@ -110,8 +110,9 @@ with audit records retained only as permitted by policy.
    Verify dependent consumers are flagged without silently changing prior outputs.
 
 Required evidence includes denied cross-tenant access through direct IDs,
-retrieval, graph traversal, caches and exports; unchanged classification on
-derivatives; revoked approval rejection; preserved contradiction; and separation
+retrieval, graph traversal, caches and exports; classification and source
+restrictions preserved or strengthened on derivatives, with any downgrade
+requiring explicit authorization; revoked approval rejection; preserved contradiction; and separation
 of observation, expert explanation, inference and authorized conclusion.
 Evaluate explanation traceability, historical correctness, uncertainty disclosure,
 expert effort and reuse across applications alongside retrieval quality. Do not
