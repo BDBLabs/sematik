@@ -11,3 +11,4 @@ supersede by adding a new one.
 - ADR-0006: Evidence Retrieval and Semantic Investigation contract
 - ADR-0007: Shadow portable CI (Dagger + Woodpecker) [Proposed]
 - ADR-0008: Control store and approval records [Proposed]
+- [ADR-0009: Teach Mode and a shared institutional knowledge foundation](ADR-0009-teach-mode-and-institutional-knowledge.md) [Accepted direction; implementation pending]
