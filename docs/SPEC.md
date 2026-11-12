@@ -1,6 +1,14 @@
 # Semantic Data Conversion Engine  
 ## Moonshot Requirements Specification — Research / Prototype Challenge
 
+> Product scope clarification: [PRODUCT_VISION.md](PRODUCT_VISION.md) records
+> the owner's broader institutional knowledge and understanding mission and
+> takes precedence over conversion-only descriptions of Sematik. The numbered
+> requirements below remain the conversion application's contract. Proposed
+> [ADR-0009](adr/ADR-0009-institutional-understanding-foundation.md) reconciles
+> that mission with these requirements and existing ADRs; it does not waive
+> conversion acceptance criteria or silently supersede accepted decisions.
+
 **Status:** Advanced exploratory specification  
 **Working designation:** Semantic Conversion Engine / Semantic Compiler  
 **Primary proving domain:** California property assessment and CPASF  
