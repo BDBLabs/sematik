@@ -20,6 +20,8 @@ credential mechanism, then return a `Principal` with actor, tenant, roles,
 issuer, method, expiry, and optional permission scope. The application does not
 mint passwords or accept actor/tenant/roles from request bodies or untrusted
 headers. A provider must fail closed on invalid or expired credentials.
+The current boundary checks issuer presence and expiry; issuer trust and
+audience validation require that future concrete provider.
 
 Tests inject a fixture verifier through FastAPI's dependency override and use
 bearer credentials through the actual API path. That test verifier lives only
@@ -50,7 +52,9 @@ follow-ups.
 All authorization outcomes log a server-generated request ID, method, route
 template, actor/tenant IDs when authenticated, decision and reason. Credentials,
 source rows, request bodies, arbitrary URL path values and provider responses
-are not logged by this boundary. `SEMATIK_ALLOWED_ORIGINS` is a comma-separated
+are not logged by this boundary. Actor and tenant identifiers are escaped in
+line-oriented logs to prevent control-character injection.
+`SEMATIK_ALLOWED_ORIGINS` is a comma-separated
 list of exact browser origins; the default allows local development on ports
 5173 and no wildcard. CORS is not an authorization mechanism.
 

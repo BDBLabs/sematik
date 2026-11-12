@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import logging
+import re
 from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi import Depends, FastAPI
+from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 
 from api.auth import get_identity_provider, require_action
@@ -16,14 +18,17 @@ from sematik.access import Origin, Principal, ResourceScope, authorize
 
 class CredentialProvider:
     def verify(self, credential: str) -> Principal | None:
-        if credential not in {"valid", "analyst", "expired", "internal", "wrong-issuer"}:
+        if credential not in {"valid", "analyst", "expired", "internal", "missing-issuer",
+                              "malicious-identity"}:
             return None
         roles = frozenset({"analyst", "conversion_operator", "tenant_reader"})
         if credential == "analyst":
             roles = frozenset({"analyst"})
         return Principal(
-            actor_id="actor-a", tenant_id="tenant-a", roles=roles,
-            issuer="" if credential == "wrong-issuer" else "test-verifier",
+            actor_id="actor-a\nresult=allow" if credential == "malicious-identity" else "actor-a",
+            tenant_id="tenant-a\rresult=allow" if credential == "malicious-identity" else "tenant-a",
+            roles=roles,
+            issuer="" if credential == "missing-issuer" else "test-verifier",
             authentication_method="opaque-test-token",
             expires_at=datetime.now(UTC) + (
                 timedelta(seconds=-1) if credential == "expired" else timedelta(minutes=5)
@@ -44,29 +49,20 @@ def client():
         app.dependency_overrides[get_identity_provider] = old
 
 
-@pytest.mark.parametrize("path,method", [
-    ("/api/v1/profile", "POST"),
-    ("/api/v1/hypotheses", "POST"),
-    ("/api/v1/candidates", "POST"),
-    ("/api/v1/mapping/digest", "POST"),
-    ("/api/v1/compile", "POST"),
-    ("/api/v1/compile-sql", "POST"),
-    ("/api/v1/execute", "POST"),
-    ("/api/v1/reconcile/population", "POST"),
-    ("/api/v1/reconcile/records", "POST"),
-    ("/api/v1/reconcile/semantic", "POST"),
-    ("/api/v1/entropy/concept", "POST"),
-    ("/api/v1/entropy/semantic", "POST"),
-    ("/api/v1/entropy/semantic-flagged", "POST"),
-    ("/api/v1/fixture/legacy_parcels", "GET"),
-    ("/api/v1/fixture/demo-mapping", "GET"),
-    ("/api/v1/fixture/demo-steps", "GET"),
-    ("/api/v1/tenants/tenant-a/access", "GET"),
-])
-def test_every_data_route_rejects_unauthenticated(client: TestClient, path: str, method: str):
-    response = client.request(method, path, json={} if method == "POST" else None)
-    assert response.status_code == 401
-    assert response.json() == {"detail": "authentication required"}
+def _protected_routes() -> list[APIRoute]:
+    # Derive the inventory from FastAPI so a newly added route cannot quietly
+    # escape the request boundary without breaking this test.
+    return [route for route in app.routes if isinstance(route, APIRoute)
+            and route.path.startswith("/api/v1/") and route.path != "/api/v1/health"]
+
+
+@pytest.mark.parametrize("route", _protected_routes(), ids=lambda route: route.path)
+def test_every_data_route_rejects_unauthenticated(client: TestClient, route: APIRoute):
+    path = re.sub(r"\{[^}]+\}", "tenant-a", route.path)
+    for method in route.methods:
+        response = client.request(method, path, json={} if method == "POST" else None)
+        assert response.status_code == 401, f"{method} {route.path} is unprotected"
+        assert response.json() == {"detail": "authentication required"}
 
 
 def test_default_production_entry_fails_closed(monkeypatch):
@@ -80,7 +76,7 @@ def test_default_production_entry_fails_closed(monkeypatch):
         assert production_client.get("/api/v1/fixture/demo-mapping").status_code == 503
 
 
-@pytest.mark.parametrize("credential", ["invalid", "expired", "wrong-issuer"])
+@pytest.mark.parametrize("credential", ["invalid", "expired", "missing-issuer"])
 def test_invalid_or_expired_credentials_do_not_authenticate(client: TestClient, credential: str):
     response = client.get("/api/v1/tenants/tenant-a/access",
                           headers={"Authorization": f"Bearer {credential}"})
@@ -163,3 +159,18 @@ def test_audit_logs_exclude_credential_and_payload(client: TestClient, caplog):
     assert "invalid" not in caplog.text
     assert "SECRET_ROW_CONTENT" not in caplog.text
     assert "result=deny" in caplog.text
+
+
+def test_provider_identity_cannot_inject_audit_lines(client: TestClient, caplog):
+    caplog.set_level(logging.INFO, logger="sematik.authorization")
+    headers = {"Authorization": "Bearer malicious-identity"}
+    allowed = client.post("/api/v1/profile", headers=headers, json={"name": "x", "values": []})
+    denied = client.get("/api/v1/tenants/tenant-b/access", headers=headers)
+    assert allowed.status_code == 200
+    assert denied.status_code == 404
+    messages = [record.getMessage() for record in caplog.records
+                if record.name == "sematik.authorization"]
+    assert len(messages) == 3  # action allow, action allow, resource deny
+    assert all("\n" not in message and "\r" not in message for message in messages)
+    assert all("\\nresult=allow" in message and "\\rresult=allow" in message
+               for message in messages)

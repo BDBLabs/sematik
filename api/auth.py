@@ -40,7 +40,7 @@ def _audit(request: Request, *, result: str, reason: str,
         request_id = uuid.uuid4().hex
         request.state.request_id = request_id
     _LOG.info(
-        "authorization request_id=%s method=%s path=%s actor=%s tenant=%s result=%s reason=%s",
+        "authorization request_id=%s method=%s path=%s actor=%r tenant=%r result=%s reason=%s",
         request_id, request.method, getattr(request.scope.get("route"), "path", "<unmatched>"),
         principal.actor_id if principal else "-",
         principal.tenant_id if principal else "-", result, reason,
