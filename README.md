@@ -24,6 +24,12 @@ via versioned **Domain Packs**.
 
 See [`docs/SPEC.md`](docs/SPEC.md) for the full requirements specification.
 
+The [Phase 1 API security boundary](docs/SECURITY_BOUNDARY_PHASE1.md) requires
+authenticated actor and tenant context for data-processing routes. Until a
+trusted provider is configured, those routes fail closed; `/api/v1/health`
+remains available. This foundation does not yet provide durable tenant storage
+or governed approval of conversion plans.
+
 ## Status
 
 Pre-alpha — core semantic model, discovery/compiler/reconciliation prototypes, and tests are active. Interfaces and guarantees are still evolving.

@@ -6,12 +6,43 @@ compile (Python + SQL) -> execute -> reconcile -> entropy -> manifest."""
 
 import json
 import pathlib
+from datetime import UTC, datetime, timedelta
 
 import pytest
-from api.main import app
 from fastapi.testclient import TestClient
 
+from api.auth import get_identity_provider
+from api.main import app
+from sematik.access import Principal
+
 client = TestClient(app)
+
+
+class _FixtureIdentityProvider:
+    """Test-only credential adapter; production has no provider fallback."""
+
+    def verify(self, credential: str) -> Principal | None:
+        if credential != "synthetic-test-credential":
+            return None
+        return Principal(
+            actor_id="fixture-operator", tenant_id="synthetic-tenant",
+            roles=frozenset({"analyst", "conversion_operator", "tenant_reader"}),
+            issuer="pytest-fixture", authentication_method="opaque-test-token",
+            expires_at=datetime.now(UTC) + timedelta(minutes=5),
+        )
+
+
+@pytest.fixture(autouse=True)
+def _authenticated_demo_client():
+    old = app.dependency_overrides.get(get_identity_provider)
+    app.dependency_overrides[get_identity_provider] = lambda: _FixtureIdentityProvider()
+    client.headers["Authorization"] = "Bearer synthetic-test-credential"
+    yield
+    client.headers.pop("Authorization", None)
+    if old is None:
+        app.dependency_overrides.pop(get_identity_provider, None)
+    else:
+        app.dependency_overrides[get_identity_provider] = old
 
 FIXTURE_DIR = pathlib.Path(__file__).resolve().parent.parent / "tests" / "fixtures"
 

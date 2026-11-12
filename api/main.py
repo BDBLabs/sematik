@@ -10,9 +10,10 @@ Run locally:  uvicorn api.main:app --reload --port 8000
 from __future__ import annotations
 
 import json
+import os
 import pathlib
 import sys
-from typing import Any
+from typing import Annotated, Any
 
 # Ensure src/ is on sys.path when running under Vercel's Python serverless
 try:
@@ -22,10 +23,13 @@ try:
 except Exception:  # pragma: no cover
     pass
 
-from fastapi import Body, FastAPI, HTTPException
+from fastapi import Body, Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
+
+from api.auth import authorize_resource, require_action
+from sematik.access import Principal, ResourceScope
 from sematik.compiler import (
     CompilationError,
     PlanStep,
@@ -218,12 +222,19 @@ app = FastAPI(
     version="0.0.1",
 )
 
-# Allow frontend dev server + Railway static mount to coexist.
+# CORS is a browser policy, not authentication. Same-origin deployments need
+# no entry; local dev origins are explicit and deployment overrides must list
+# individual origins. No wildcard or credentialed cross-origin access.
+_allowed_origins = tuple(
+    origin.strip() for origin in os.getenv(
+        "SEMATIK_ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173"
+    ).split(",") if origin.strip() and "*" not in origin
+)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # tightened to explicit origins in production
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=list(_allowed_origins),
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
 )
 
 
@@ -232,17 +243,29 @@ def health() -> dict[str, str]:
     return {"status": "ok", "service": "sematik", "version": "0.0.1"}
 
 
+@app.get("/api/v1/tenants/{tenant_id}/access")
+def tenant_access(tenant_id: str, request: Request,
+                  principal: Annotated[Principal, Depends(require_action("tenant:read"))]) -> dict[str, str]:
+    """Minimal resource-tenant boundary exercised by the real API path.
+
+    This exposes no client knowledge. Future stored-resource routes must load
+    their resource scope from the store and perform the same check.
+    """
+    authorize_resource(request, principal, "tenant:read", ResourceScope(tenant_id))
+    return {"actor_id": principal.actor_id, "tenant_id": principal.tenant_id}
+
+
 # ---------------------------------------------------------------------------
 # Discovery plane — profile → hypothesis → candidate relationships
 # ---------------------------------------------------------------------------
 
-@app.post("/api/v1/profile")
+@app.post("/api/v1/profile", dependencies=[Depends(require_action("discovery:analyze"))])
 def profile(data: ColumnData) -> dict[str, Any]:
     """Profile a single column from raw values (spec §5)."""
     return profile_column(data.values)
 
 
-@app.post("/api/v1/hypotheses")
+@app.post("/api/v1/hypotheses", dependencies=[Depends(require_action("discovery:analyze"))])
 def hypotheses(data: ColumnData) -> list[dict[str, Any]]:
     """Generate discovery hypotheses for a profiled column.
 
@@ -254,7 +277,7 @@ def hypotheses(data: ColumnData) -> list[dict[str, Any]]:
     return _serialize_hypotheses(hypotheses_for_column(data.name, prof))
 
 
-@app.post("/api/v1/candidates")
+@app.post("/api/v1/candidates", dependencies=[Depends(require_action("discovery:analyze"))])
 def candidates(data: TableData) -> list[dict[str, Any]]:
     """Heuristic FK-like candidate relationships (spec §12, issue #37).
 
@@ -276,7 +299,7 @@ def candidates(data: TableData) -> list[dict[str, Any]]:
 # Compilation plane — approve → compile → SQL
 # ---------------------------------------------------------------------------
 
-@app.post("/api/v1/mapping/digest")
+@app.post("/api/v1/mapping/digest", dependencies=[Depends(require_action("conversion:plan"))])
 def mapping_digest(m: MappingIn) -> dict[str, Any]:
     """Compute a mapping's digest, completeness, and approval status."""
     mapping = _to_mapping(m)
@@ -288,7 +311,7 @@ def mapping_digest(m: MappingIn) -> dict[str, Any]:
     }
 
 
-@app.post("/api/v1/compile")
+@app.post("/api/v1/compile", dependencies=[Depends(require_action("conversion:plan"))])
 def compile(mapping: MappingIn, steps: list[StepIn]) -> dict[str, Any]:
     """Compile an approved Mapping + steps into an executable TransformationPlan."""
     m = _to_mapping(mapping)
@@ -304,7 +327,7 @@ def compile(mapping: MappingIn, steps: list[StepIn]) -> dict[str, Any]:
     }
 
 
-@app.post("/api/v1/compile-sql")
+@app.post("/api/v1/compile-sql", dependencies=[Depends(require_action("conversion:plan"))])
 def compile_sql(mapping: MappingIn, steps: list[StepIn],
                 source_table: str = Body(...),
                 dialect: str = Body("postgres")) -> dict[str, Any]:
@@ -328,7 +351,7 @@ def compile_sql(mapping: MappingIn, steps: list[StepIn],
 # Execution plane — execute → reconcile → manifest
 # ---------------------------------------------------------------------------
 
-@app.post("/api/v1/execute")
+@app.post("/api/v1/execute", dependencies=[Depends(require_action("conversion:execute"))])
 def execute(payload: ExecutionPayload) -> dict[str, Any]:
     """Run a compiled plan over source rows (spec §29/§30)."""
     m = _to_mapping(payload.mapping)
@@ -367,7 +390,7 @@ def execute(payload: ExecutionPayload) -> dict[str, Any]:
     }
 
 
-@app.post("/api/v1/reconcile/population")
+@app.post("/api/v1/reconcile/population", dependencies=[Depends(require_action("conversion:reconcile"))])
 def reconcile_population(rows: list[dict[str, Any]],
                          outputs: list[dict[str, Any]],
                          source_key: str = Body(...),
@@ -376,7 +399,7 @@ def reconcile_population(rows: list[dict[str, Any]],
         rows, outputs, source_key=source_key, target_key=target_key)
 
 
-@app.post("/api/v1/reconcile/records")
+@app.post("/api/v1/reconcile/records", dependencies=[Depends(require_action("conversion:reconcile"))])
 def reconcile_records(rows: list[dict[str, Any]],
                       outputs: list[dict[str, Any]],
                       source_key: str = Body(...),
@@ -388,7 +411,7 @@ def reconcile_records(rows: list[dict[str, Any]],
                 numeric_pairs=[tuple(p) for p in numeric_pairs])
 
 
-@app.post("/api/v1/reconcile/semantic")
+@app.post("/api/v1/reconcile/semantic", dependencies=[Depends(require_action("conversion:reconcile"))])
 def reconcile_semantic(assertions: list[dict[str, Any]],
                        invariants: list[list[str]] | None = None) -> dict[str, Any]:
     """Run semantic invariants (§29). Optionally pass custom invariants
@@ -418,7 +441,7 @@ def reconcile_semantic(assertions: list[dict[str, Any]],
 # Entropy plane — §76
 # ---------------------------------------------------------------------------
 
-@app.post("/api/v1/entropy/concept")
+@app.post("/api/v1/entropy/concept", dependencies=[Depends(require_action("discovery:analyze"))])
 def concept_entropy_endpoint(hypotheses: list[HypothesisIn]) -> dict[str, Any]:
     """Per-concept entropy over competing hypotheses (§76).
 
@@ -434,7 +457,7 @@ def concept_entropy_endpoint(hypotheses: list[HypothesisIn]) -> dict[str, Any]:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
-@app.post("/api/v1/entropy/semantic")
+@app.post("/api/v1/entropy/semantic", dependencies=[Depends(require_action("discovery:analyze"))])
 def semantic_entropy_endpoint(hypotheses: list[HypothesisIn]) -> dict[str, Any]:
     """Weighted-mean semantic entropy across concepts (§76).
 
@@ -449,7 +472,7 @@ def semantic_entropy_endpoint(hypotheses: list[HypothesisIn]) -> dict[str, Any]:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
-@app.post("/api/v1/entropy/semantic-flagged")
+@app.post("/api/v1/entropy/semantic-flagged", dependencies=[Depends(require_action("discovery:analyze"))])
 def semantic_entropy_flagged_endpoint(hypotheses: list[HypothesisIn]) -> dict[str, Any]:
     """Best-effort semantic entropy with warnings for uncalibrated inputs (#36).
 
@@ -466,14 +489,14 @@ def semantic_entropy_flagged_endpoint(hypotheses: list[HypothesisIn]) -> dict[st
 # Fixtures — convenient seed data for the UI
 # ---------------------------------------------------------------------------
 
-@app.get("/api/v1/fixture/legacy_parcels")
+@app.get("/api/v1/fixture/legacy_parcels", dependencies=[Depends(require_action("discovery:analyze"))])
 def fixture_legacy_parcels() -> list[dict[str, Any]]:
     """The demo fixture: California legacy parcel assessments (4 rows)."""
     path = FIXTURE_DIR / "legacy_parcels.json"
     return json.loads(path.read_text()).get("rows", [])
 
 
-@app.get("/api/v1/fixture/demo-mapping")
+@app.get("/api/v1/fixture/demo-mapping", dependencies=[Depends(require_action("discovery:analyze"))])
 def fixture_demo_mapping() -> dict[str, Any]:
     """A fully-approved demo Mapping (mirrors demo.py) for UI prefilling."""
     return {
@@ -509,7 +532,7 @@ def fixture_demo_mapping() -> dict[str, Any]:
     }
 
 
-@app.get("/api/v1/fixture/demo-steps")
+@app.get("/api/v1/fixture/demo-steps", dependencies=[Depends(require_action("discovery:analyze"))])
 def fixture_demo_steps() -> list[dict[str, Any]]:
     """Demo compilation plan steps."""
     return [
