@@ -59,3 +59,7 @@ different underlying model from the author, its review satisfies the
 independent-review requirement. Where no different model is available, the
 exception requires a per-PR note from the owner in chat. The author does not
 merge a PR until the required review is recorded.
+
+## Documentation Steward and ADR governance (policy proposed)
+
+On a material orchestration initiative, read [docs/orchestration/DOCUMENTATION_STEWARD_POLICY.md](docs/orchestration/DOCUMENTATION_STEWARD_POLICY.md) and maintain [docs/orchestration/ENGAGEMENTS.md](docs/orchestration/ENGAGEMENTS.md). Delegate a Documentation Steward function to a smaller capable model when available, with the orchestrator retaining decision and quality authority. Use existing ADRs in `docs/adr/`; steward drafts decisions and evidence, never self-accepts them. Record planned versus implemented, validated, and independently reviewed outcomes distinctly. No policy change is active on the default branch until required review and authorized merge. This directive does not override the current coordination, AI attribution, or merge governance rules.
