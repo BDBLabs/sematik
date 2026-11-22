@@ -1,7 +1,8 @@
 # ADR-0006: Evidence Retrieval and Semantic Investigation contract
 
-**Status:** Proposed  
-**Date:** 2026-10-05
+**Status:** Accepted  
+**Date:** 2026-10-05  
+**Accepted:** 2026-10-11, at the repository owner's instruction (Bill Parris, in chat). Acceptance records the decision, not completion: the "Pilot posture" section still governs what may be claimed, and sections 8 and 10 are implemented incrementally (see PR #60 for section 8; the section 10 evaluation harness is in progress).
 
 ## Context
 
