@@ -25,6 +25,9 @@ class DomainPack:
     invariants: list[tuple[str, object]] = field(default_factory=list)  # (desc, callable)
     known_patterns: list[str] = field(default_factory=list)
     corpus: list = field(default_factory=list)  # HandbookPassage items
+    # abbreviation -> expansion words used for query-side retrieval expansion.
+    # Domain knowledge: must be subject-matter-expert reviewed (ADR-0006 section 10).
+    glossary: dict[str, tuple[str, ...]] = field(default_factory=dict)
     valid_from: str = ""
     golden_records: list[dict] = field(default_factory=list)
 

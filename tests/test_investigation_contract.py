@@ -226,6 +226,8 @@ def test_execution_and_assurance_modules_do_not_import_discovery_services():
         "embeddings",
         "retrieval",
         "retrieval_eval",
+        "lexical",
+        "hybrid",
         "investigation",
         "egress",
         "agents",

@@ -34,6 +34,32 @@ CPASF_CODE_SETS: dict[str, dict[str, str]] = {
 }
 
 
+# PROVISIONAL retrieval glossary: legacy-field abbreviation -> expansion words.
+# Written by an AI model from general assessor-domain knowledge, BEFORE any
+# retrieval metrics were computed, and NOT yet reviewed by a subject-matter
+# expert. It widens Discovery-plane search only; it asserts nothing about what
+# any field means and must be SME-reviewed before being treated as pack knowledge.
+CPASF_GLOSSARY: dict[str, tuple[str, ...]] = {
+    "av": ("assessed value",),
+    "lnd": ("land",), "ld": ("land",),
+    "imp": ("improvement",), "impr": ("improvement",), "impv": ("improvement",),
+    "asmt": ("assessment",), "assmt": ("assessment",), "assd": ("assessed",),
+    "val": ("value",), "vl": ("value",),
+    "xfer": ("transfer",), "trf": ("transfer",), "trnsf": ("transfer",),
+    "coo": ("change ownership",), "chg": ("change",),
+    "exmp": ("exemption",), "exm": ("exemption",), "xmpt": ("exemption",),
+    "ho": ("homeowner exemption",),
+    "apn": ("assessor parcel number",),
+    "apl": ("appeal",), "appl": ("appeal",),
+    "corr": ("correction",), "crctn": ("correction",),
+    "supp": ("supplemental",), "esc": ("escape",),
+    "txn": ("transaction",), "trn": ("transaction",),
+    "yr": ("year",), "dt": ("date",), "pct": ("percent",), "amt": ("amount",),
+    "doc": ("document documentary",), "evid": ("evidence",),
+    "txbl": ("taxable",),
+}
+
+
 def cpasf_pack(version: str = "0.1.0") -> DomainPack:
     code_sets = {
         name: CodeSet(name=name, mappings=mappings)
@@ -46,6 +72,7 @@ def cpasf_pack(version: str = "0.1.0") -> DomainPack:
         code_sets=code_sets,
         invariants=CPASF_INVARIANTS,
         known_patterns=["CAMA ROLL_PRINT", "PARCEL+AV_LAND+AV_IMP layout", "XFER_TYPE 0-7 enumeration"],
+        glossary=dict(CPASF_GLOSSARY),
     )
     return pack
 
