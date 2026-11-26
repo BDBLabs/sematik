@@ -1,5 +1,5 @@
 // src/components/MappingEditor.tsx
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { mappingDigest, loadFixture } from "../api";
 import type { MappingIn, StepIn, Row } from "../api";
 
@@ -21,11 +21,37 @@ const SEVEN_LEVELS = [
   { level: 7, kind: "target", label: "Target artifact" },
 ];
 
+type ApprovalStatus = "idle" | "checking" | "approved" | "rejected" | "error";
+
+interface ApprovalState {
+  status: ApprovalStatus;
+  problems: string[];
+  digest: string | null;
+  complete: boolean | null;
+  error: string | null;
+}
+
+const IDLE_APPROVAL: ApprovalState = {
+  status: "idle",
+  problems: [],
+  digest: null,
+  complete: null,
+  error: null,
+};
+
 export default function MappingEditor({ rows, mapping, setMapping, steps, setSteps }: Props) {
   const [loading, setLoading] = useState(false);
+  const [approval, setApproval] = useState<ApprovalState>(IDLE_APPROVAL);
+  const approvalRequest = useRef(0);
+
+  const invalidateApproval = () => {
+    approvalRequest.current += 1;
+    setApproval(IDLE_APPROVAL);
+  };
 
   const loadDemo = async () => {
     setLoading(true);
+    invalidateApproval();
     try {
       const m = await loadFixture("demo-mapping") as any;
       setMapping(m);
@@ -39,7 +65,9 @@ export default function MappingEditor({ rows, mapping, setMapping, steps, setSte
   };
 
   const updateMapping = (patch: Partial<MappingIn>) => {
-    setMapping({ ...(mapping || {}), ...patch });
+    setMapping({ source_artifact: "", canonical_concept: "", ...(mapping || {}), ...patch });
+    // Any edit changes the mapping content, so a previous approval result is stale.
+    invalidateApproval();
   };
 
   const updateLevel = (i: number, field: string, value: string) => {
@@ -56,6 +84,35 @@ export default function MappingEditor({ rows, mapping, setMapping, steps, setSte
     updateMapping({ levels });
   };
 
+  const checkApproval = async () => {
+    if (!mapping || approval.status === "checking") return;
+    const requestId = ++approvalRequest.current;
+    setApproval({ ...IDLE_APPROVAL, status: "checking" });
+    try {
+      // The API owns approval policy (§13, ADR-0008); the UI never decides it locally.
+      const result = await mappingDigest(mapping);
+      if (requestId !== approvalRequest.current) return; // mapping changed mid-check
+      const problems = Array.isArray(result.approval_problems)
+        ? result.approval_problems.filter((p): p is string => typeof p === "string")
+        : [];
+      const approved = result.approved === true;
+      setApproval({
+        status: approved ? "approved" : "rejected",
+        problems: approved ? [] : problems.length > 0 ? problems : ["Approval check returned no reason"],
+        digest: typeof result.digest === "string" ? result.digest : null,
+        complete: typeof result.complete === "boolean" ? result.complete : null,
+        error: null,
+      });
+    } catch (e: unknown) {
+      if (requestId !== approvalRequest.current) return;
+      setApproval({
+        ...IDLE_APPROVAL,
+        status: "error",
+        error: e instanceof Error ? e.message : String(e),
+      });
+    }
+  };
+
   if (!mapping) {
     return (
       <div className="space-y-4">
@@ -66,6 +123,13 @@ export default function MappingEditor({ rows, mapping, setMapping, steps, setSte
         </button>
         <p className="text-sm text-slate-400">
           Or build manually — fill out the form below.
+        </p>
+        <button onClick={checkApproval} disabled={!mapping}
+          className="px-4 py-2 bg-blue-600 rounded opacity-50 cursor-not-allowed">
+          Check approval status
+        </button>
+        <p className="text-sm text-slate-400">
+          Load or build a mapping to enable the approval check.
         </p>
       </div>
     );
@@ -181,13 +245,50 @@ export default function MappingEditor({ rows, mapping, setMapping, steps, setSte
         </div>
       </div>
 
-      {/* Approval check */}
-      <button
-        onClick={checkApproval}
-        className="px-4 py-2 bg-blue-600 rounded hover:bg-blue-700"
-      >
-        Check approval status
-      </button>
+      {/* Approval gate — authoritative result from the API, never local guesswork */}
+      <section className="border border-slate-700 rounded p-3 space-y-2">
+        <div className="flex items-center gap-3 flex-wrap">
+          <button
+            onClick={checkApproval}
+            disabled={!mapping || approval.status === "checking"}
+            aria-busy={approval.status === "checking"}
+            className="px-4 py-2 bg-blue-600 rounded hover:bg-blue-700 disabled:opacity-50"
+          >
+            {approval.status === "checking"
+              ? "Checking approval…"
+              : approval.status === "idle"
+                ? "Check approval status"
+                : "Re-check approval"}
+          </button>
+          {approval.status === "approved" && (
+            <span role="status" className="text-sm text-green-400">
+              Approved{approval.digest ? ` — digest ${approval.digest.slice(0, 12)}…` : ""}
+            </span>
+          )}
+          {approval.status === "rejected" && (
+            <span role="status" className="text-sm text-red-400">
+              Not approved — resolve the problems below before compiling or executing.
+            </span>
+          )}
+          {approval.status === "error" && (
+            <span role="alert" className="text-sm text-red-400">Approval check failed.</span>
+          )}
+        </div>
+
+        {approval.status === "rejected" && (
+          <ul role="alert" className="text-sm text-red-300 space-y-1">
+            {approval.problems.map((p, i) => <li key={i}>• {p}</li>)}
+          </ul>
+        )}
+        {approval.status === "error" && approval.error && (
+          <pre role="alert" className="bg-red-900/30 border border-red-700 rounded p-2 text-sm text-red-300 overflow-x-auto">
+            {approval.error}
+          </pre>
+        )}
+        {approval.complete === false && (
+          <p className="text-sm text-amber-400">Seven semantic levels are not complete.</p>
+        )}
+      </section>
     </div>
   );
 }
