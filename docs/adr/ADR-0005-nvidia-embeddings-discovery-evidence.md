@@ -1,6 +1,6 @@
 # ADR-0005: Embeddings are Discovery-plane evidence; NVIDIA is a pluggable provider
 
-**Status:** Proposed  
+**Status:** Accepted (owner directive, 2026-11-27)
 **Date:** 2026-10-05
 
 ## Context

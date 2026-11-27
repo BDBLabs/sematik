@@ -67,11 +67,12 @@ useful.
 - [SPEC.md](SPEC.md) retains its numbered conversion requirements and acceptance
   criteria. Its conversion-only product framing is qualified by this directive.
 - [ARCHITECTURE.md](ARCHITECTURE.md) describes the current design.
-- [ADR-0009](adr/ADR-0009-institutional-understanding-foundation.md) is the proposed
-  architectural reconciliation. Product direction is owner-supplied; proposed
-  service contracts and implementation sequencing still require review.
+- [ADR-0009](adr/ADR-0009-institutional-understanding-foundation.md) is the accepted
+  architectural reconciliation by owner directive 2026-11-27. Product direction is
+  owner-supplied; service contracts and implementation sequencing still require review.
 - Accepted ADRs are append-only. Any necessary supersession requires a new ADR
-  and the repository's approval process. Existing Proposed ADRs remain Proposed.
+  and the repository's approval process. ADR-0005 through ADR-0010 were accepted by
+  owner directive 2026-11-27; implementation evidence remains separately verified.
 
 Source: owner directive supplied in chat, “SEMATIK: FOUNDATIONAL PRODUCT VISION.”
 Core principles and orchestrator direction retained from that directive; repository

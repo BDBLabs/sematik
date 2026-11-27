@@ -1,6 +1,6 @@
 # ADR-0009: Institutional understanding foundation
 
-Status: Proposed
+Status: Accepted (owner directive, 2026-11-27)
 
 Source: owner's foundational product vision, recorded in
 [PRODUCT_VISION.md](../PRODUCT_VISION.md).
@@ -27,9 +27,9 @@ The gap is making their lifecycle independent of a migration target or run.
 | ADR-0002, Accepted: SIR semantic authority | Retain canonical structured meaning. Propose extending SIR concepts to processes, decisions, relationships and rules without requiring a target mapping. SIR stores authority claims; it does not create legal or organizational authority. |
 | ADR-0003, Accepted: explicit approval and deterministic execution | Retain. Evidence collection and SME statements do not automatically authorize conclusions. Application-specific approval remains required for consequential use. |
 | ADR-0004, Accepted: versions and reproducibility | Retain conversion manifests; propose versioned understanding snapshots and dependency references for other consumers. Do not relabel an inquiry as a conversion run. |
-| ADR-0005 and ADR-0006, Proposed: embeddings and investigation | Reuse existing primitives and proposed boundaries; similarity remains evidence only. Their Proposed status remains unchanged. |
-| ADR-0007, Proposed: portable CI | Unchanged; broader product scope does not authorize CI cutover. |
-| ADR-0008, Proposed: Control store | Build on the proposal, but verify enforcement before relying on it. Current partial implementation does not establish accepted architecture or production governance. |
+| ADR-0005 and ADR-0006, Accepted: embeddings and investigation | Reuse existing primitives and accepted boundaries; similarity remains evidence only. Owner directive 2026-11-27 recorded acceptance. |
+| ADR-0007, Accepted: portable CI | Acceptance by owner directive 2026-11-27 does not authorize CI cutover; that needs separate execution approval. |
+| ADR-0008, Accepted: Control store | Build on the accepted decision, but verify enforcement before relying on it. Current partial implementation does not establish production governance. |
 | SPEC §1–2, §50, §89–90 | Interpret as conversion application scope under the owner's product mission. Preserve numbered requirements and conversion acceptance tests. |
 | SPEC §42–46: reuse and cross-customer learning | Same-client reuse remains permission-bound. Cross-client reuse requires explicit rights, authorization and review, including derived patterns, embeddings and precedents. Removing names is not sufficient authorization. |
 
@@ -95,7 +95,7 @@ with audit records retained only as permitted by policy.
 
 ## Incremental delivery and acceptance
 
-1. Record the owner mission and review this reconciliation. Resolve Proposed ADRs
+1. Record the owner mission and review this reconciliation. Owner directive 2026-11-27 resolved ADR status; implementation verification remains separate
    through existing governance; do not rewrite accepted ADRs.
 2. Establish durable, authenticated, tenant-scoped Control and evidence storage;
    close the approval bypasses before treating either as platform infrastructure.

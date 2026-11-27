@@ -3,7 +3,7 @@
 These are ADR-style records for the scoped P0 remediation. The governing
 numbered ADR is
 [ADR-0010](../adr/ADR-0010-ui-remediation-approval-gate-and-tailwind-pipeline.md)
-(Status: Proposed; owner acceptance required). Baseline:
+(Status: Accepted by owner directive, 2026-11-27). Baseline:
 `8a03b5379465b616648918886eacd821e1de818e`; branch:
 `fix/ui-remediation/sematik-p0`; implementation commit:
 `c6dd78cbf17fab4f03ca4dda167e5cfbc029d45c`.

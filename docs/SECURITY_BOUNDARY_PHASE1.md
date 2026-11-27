@@ -1,7 +1,7 @@
 # Phase 1 identity and authorization boundary
 
 Status: PR 1 implementation, limited foundation. This document does not certify
-Sematik for client data. ADR-0008 and ADR-0009 remain Proposed.
+Sematik for client data. ADR-0008 and ADR-0009 were accepted by owner directive 2026-11-27; enforcement still requires verification.
 
 ## Request boundary
 

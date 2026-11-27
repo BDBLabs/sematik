@@ -9,6 +9,6 @@ supersede by adding a new one.
 - ADR-0004: Versioning and reproducibility contract
 - ADR-0005: Embeddings are Discovery-plane evidence; NVIDIA is a pluggable provider
 - ADR-0006: Evidence Retrieval and Semantic Investigation contract
-- ADR-0007: Shadow portable CI (Dagger + Woodpecker) [Proposed]
-- ADR-0008: Control store and approval records [Proposed]
-- ADR-0009: Institutional understanding foundation [Proposed; owner product direction recorded separately]
+- ADR-0007: Shadow portable CI (Dagger + Woodpecker) [Accepted by owner directive 2026-11-27]
+- ADR-0008: Control store and approval records [Accepted by owner directive 2026-11-27]
+- ADR-0009: Institutional understanding foundation [Accepted by owner directive 2026-11-27; owner product direction recorded separately]

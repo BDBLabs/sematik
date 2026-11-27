@@ -1,7 +1,7 @@
 # ADR-0008: Control store and approval records
 
 Date: 2026-10-10
-Status: Proposed
+Status: Accepted (owner directive, 2026-11-27)
 
 Addresses: I-11, I-12, I-13, I-16 (see docs/ISSUES.md). Builds on ADR-0001,
 ADR-0003, ADR-0004 and ADR-0006 §9. Does not supersede them.

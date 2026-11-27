@@ -1,6 +1,6 @@
 # ADR-0006: Evidence Retrieval and Semantic Investigation contract
 
-**Status:** Proposed  
+**Status:** Accepted (owner directive, 2026-11-27)
 **Date:** 2026-10-05
 
 ## Context

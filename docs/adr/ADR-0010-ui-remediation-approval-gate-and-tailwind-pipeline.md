@@ -1,7 +1,7 @@
 # ADR-0010: UI approval gate and Tailwind build pipeline (P0 remediation)
 
 Date: 2026-11-26
-Status: Proposed (scoped local remediation; owner acceptance required)
+Status: Accepted (owner directive, 2026-11-27; scoped local remediation)
 
 ## Context
 

@@ -1,7 +1,7 @@
 # ADR-0007: Shadow portable CI (Dagger + Woodpecker)
 
 Date: 2026-10-06
-Status: Proposed
+Status: Accepted (owner directive, 2026-11-27)
 
 ## Decision
 
